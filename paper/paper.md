@@ -1,5 +1,5 @@
 ---
-title: "An Open Collaborative Paper on X"
+title: "An Open Collaborative Paper on Forecast Accuracy"
 author:
   - name: First Author
     affiliation: Institution A
@@ -13,18 +13,23 @@ date: \today
 Brief abstract goes here.
 
 # Introduction
-{{< include sections/01-introduction.md >}}
+
+This is the introduction of the paper.
 
 # Related Work
-{{< include sections/02-related-work.md >}}
+
+TODO
 
 # Methods
-{{< include sections/03-methods.md >}}
+
+TODO
 
 # Results
-{{< include sections/04-results.md >}}
+
+TODO
 
 # Discussion
-{{< include sections/05-discussion.md >}}
+
+TODO
 
 # References
