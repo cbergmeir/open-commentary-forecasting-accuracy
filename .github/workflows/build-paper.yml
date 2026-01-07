@@ -1,0 +1,35 @@
+name: Build paper
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Install Pandoc and LaTeX
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pandoc texlive-latex-base \
+          texlive-latex-extra texlive-bibtex-extra
+
+    - name: Build PDF
+      run: |
+        mkdir -p output
+        pandoc paper/paper.md \
+          --metadata-file=paper/metadata.yaml \
+          --filter pandoc-include \
+          --pdf-engine=pdflatex \
+          -o output/paper.pdf
+
+    - name: Upload PDF
+      uses: actions/upload-artifact@v4
+      with:
+        name: paper-pdf
+        path: output/paper.pdf

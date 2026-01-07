@@ -1,0 +1,6 @@
+geometry: margin=1in
+fontsize: 11pt
+linestretch: 1.2
+bibliography: references.bib
+csl: nature.csl
+link-citations: true
