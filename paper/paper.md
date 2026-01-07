@@ -4,12 +4,9 @@ author:
   - "First Author \\ Institution A"
   - "Second Author \\ Institution B"
 date: \today
+abstract: |
+  Brief abstract goes here.
 ---
-
-# Abstract
-
-Brief abstract goes here.
-
 # Introduction
 
 ## Motivation
@@ -165,6 +162,21 @@ If your series are intermittent: do XYZ ...
 
 
 
+# References {.unnumbered}
+
+::: {#refs}
+:::
+
+\newpage
+
+\appendix
+
+# References to add
+
+- Rob's paper 2006
+- Foresight paper Ivan
+- Davydenkov and Fildes, 2013
+- Ivan's book: https://openforecast.org/adam/errorMeasures.html
 
 
 # Appendix: Slides 2
@@ -566,12 +578,3 @@ If you need a scale-free measure and interpretability:
   - use WAPE, WRMSPE, WBPE; proceed with caution
   - WAPE, WRMSPE, WBPE could also be normalised with a sum over the training set instead of the test set (??)
   - use RMSSE/MASE but with the denominator running over the test set if horizons are long, and with the same (fixed-origin) setup for your benchmark method (??)
-
-# References to add
-
-- Rob's paper 2006
-- Foresight paper Ivan
-- Davydenkov and Fildes, 2013
-- Ivan's book: https://openforecast.org/adam/errorMeasures.html
-
-# References

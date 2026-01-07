@@ -4,3 +4,4 @@ linestretch: 1.2
 bibliography: paper/references.bib
 # csl: nature.csl
 link-citations: true
+numbersections: true
