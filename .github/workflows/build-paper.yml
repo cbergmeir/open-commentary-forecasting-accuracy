@@ -24,7 +24,6 @@ jobs:
         mkdir -p output
         pandoc paper/paper.md \
           --metadata-file=paper/metadata.yaml \
-          --filter pandoc-include \
           --pdf-engine=pdflatex \
           -o output/paper.pdf
 
