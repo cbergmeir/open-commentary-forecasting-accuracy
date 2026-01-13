@@ -11,15 +11,40 @@ abstract: |
 
 ## Motivation
 
-measures are misused, the MAPE is still very prevalent, ML people make up their own measures. The aim of the paper is to represent as closely as possible what is the current consensus among the forecasting community about how to evaluate point accuracy.
+Measures are misused, in practice and in academia. Examples: 
 
-## Examples
+    - ML research in academia. Point to the papers that use some normalised MSE without checking stationarity.
+    - Practice (and academia): Use of MAPE is still very common
+    "we use XYZ, we know it is not good but the business wants to use this metric". This is not good enough anymore.
+    - more sutile: using MAE (or MASE) to compare ML models trained with L1 loss with ETS and ARIMA, that train with Maximum likelihood, therewith for the mean of the forecast distribution.
 
-An energy use case with production, vs a use case from retail: intermittent data, versus a use case of aggregated retail, versus financial time series.
+Forecasting is done in very different domains with very different data characteristics and there is no one-size-fits all approach for evaluation. However, this leads to a lot of confusion, and in the worst situation it is used as an excuse to stick to clearly inappropriate and outdated evaluation protocols.
+
+The aim of this commentary is to represent as closely as possible what is the current consensus among the forecasting community about how to evaluate point accuracy in different scenarios.
+
+We talk here about point forecasting. However, we'll discuss in Section XYZ that forecasts are always probabilistic, even if we do point forecasting. There are people out there that argue that forecasting should always show the spread, e.g., through intervals. While we agree to this in spirit, we will nonetheless focus in this paper on point forecasting.
 
 
-- "we use XYZ, we know it is not good but the business wants to use this metric". This is not good enough anymore.
-- ML: Many researchers just use some normalised MSE.
+## Examples for different scenarios
+
+TODO: use case from retail: intermittent data, versus a use case of aggregated retail, versus financial time series.
+
+### Example for an easy, straightforward case: renewable energy production
+
+TODO: Show a picture
+
+The series has both a meaningful minimum and maximum. Min-max scaling can be used to normalise across, e.g., wind turbines of different sizes. Both normalised MAE or normalised RMSE seem appropriate.
+
+### Example for a non-normal, asymmetric distribution: intermittent retail forecasting
+
+TODO: Show a picture
+
+### Example for strong trends, unknown scale: Bitcoin price data
+
+TODO: Show a picture
+
+
+
 
 # Forecasting is always probabilistic. Which summary statistic do you want to elicit?
 
