@@ -40,12 +40,12 @@ We talk here about point forecasting. However, we'll discuss in Section XYZ that
 
 
 
-Ivan recommends to both use mean and median:  "both the mean and median of the chosen metric"
-
-
 # Forecasting is always probabilistic. Which summary statistic do you want to elicit?
 
 TODO: Different measures are minimal under different summary statistics of the forecast distribution
+
+Ivan recommends to both use mean and median:  "both the mean and median of the chosen metric"
+
 
 Forecasting is fundamentally a probabilistic exercise. When we predict a future value ( y_{t+h} ), we are not truly predicting a single number, but rather a full predictive distribution that reflects uncertainty about future outcomes given the information available at time ( t ). A point forecast is therefore best understood as a summary statistic of this distribution. Importantly, this summary is not inherently the “most likely future value.” Instead, it is the value that is optimal under a specific loss function, that is, the value that minimizes expected loss with respect to the predictive distribution. Seen this way, point forecasts are statistical objects with familiar properties such as bias and variance, and their interpretation depends critically on the criterion used to define optimality.
 
