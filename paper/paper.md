@@ -1,5 +1,5 @@
 ---
-title: "An Open Collaborative Paper on Forecast Accuracy"
+title: "An open commentary about evaluation of point forecast accuracy: the current state of the art, recommendations for both academics and practitioners"
 author:
   - "First Author \\ Institution A"
   - "Second Author \\ Institution B"
@@ -39,114 +39,72 @@ We talk here about point forecasting. However, we'll discuss in Section XYZ that
  -->
 
 
+TODO: In general, there are two things to consider: 1) Which loss to use, which summary statistic to elicit. And 2) How to normalise. Both aspects depend on the distribution of the time series.
 
-# Forecasting is always probabilistic. Which summary statistic do you want to elicit?
+# Q1: Forecasting is always probabilistic, forecasts are never 100% correct and always bear uncertainty.
 
-TODO: Different measures are minimal under different summary statistics of the forecast distribution
+Forecasting is not like classification of images of cats versus dogs, where you may have nearly no noise in the signal and you may be able to achieve 100% accuracy. Forecasting is fundamentally a probabilistic exercise, and nearly always forecasts will have some irreducible uncertainty inherent to them, which means there typically is a limit to the accuracy you can achieve, no matter your methodology. Furthermore, we always need to consider the forecast distribution, which is the distribution of a currently unknown future value that we aim to forecast. If we now decide to produce a point forecast, that point forecast is best understood as a summary statistic, summarising the forecast distribution into a single value. Straightforward choices for this summary statistic are mean, median, or mode. As such **point forecasts are statistical objects with familiar properties such as bias and variance. Their interpretation depends critically on the criterion used to define optimality.**
 
-Ivan recommends to both use mean and median:  "both the mean and median of the chosen metric"
+## Calculating point forecasts from a forecast distribution: A motivating example, tomorrow's weather forecast
 
+Let's assume we have the following forecast distribution of tomorrow's rainfall: 80% chance: 0 mm, 15% chance: 5 mm, 5% chance: 40 mm. 
+TODO: The distribution is visualised in Figure TODO
 
-Forecasting is fundamentally a probabilistic exercise. When we predict a future value ( y_{t+h} ), we are not truly predicting a single number, but rather a full predictive distribution that reflects uncertainty about future outcomes given the information available at time ( t ). A point forecast is therefore best understood as a summary statistic of this distribution. Importantly, this summary is not inherently the “most likely future value.” Instead, it is the value that is optimal under a specific loss function, that is, the value that minimizes expected loss with respect to the predictive distribution. Seen this way, point forecasts are statistical objects with familiar properties such as bias and variance, and their interpretation depends critically on the criterion used to define optimality.
+Which point forecast should we pick? A layman may assume that forecasting intends to produce the most likely future value, which in statistical terms is the mode. In our example, the mode is $0$ mm, i.e., no rain. The median is the 50th percentile, which in our example is again $0$ mm, no rain. The mean comes to $\mathbb{E}[Y] = 0 \cdot 0.8 + 5 \cdot 0.15 + 40 \cdot 0.05 = 3.25\ \text{mm}$.
 
-Different loss functions lead to different optimal point forecasts because they emphasize different aspects of forecast errors. Under squared error loss, the optimal forecast is the mean of the predictive distribution, which explains why many standard forecasting methods implicitly target expected values. Under absolute error loss, the optimal forecast becomes the median, offering greater robustness to outliers and skewed distributions. Only under 0–1 loss does the optimal forecast coincide with the mode, the value with the highest probability or density. This distinction clarifies why the common phrase “most likely future value” is often misleading in practice: unless a mode forecast is explicitly targeted, most point forecasts are not modes. Mean, median, and mode coincide only in special cases such as symmetric, unimodal distributions. Consequently, interpreting or evaluating point forecasts always requires asking an essential question: which loss function—and therefore which summary of the predictive distribution—is being implicitly or explicitly used?
+Forecasting is (almost) always a means to an end, usually for subsequent decision-making. **While the forecast distribution is in principle independent of the subsequent decision, the point forecast is not.**
+
+Coming back to our example, the decision to be made could be whether you should carry an umbrella, put on a light all-weather jacket, or can go with your cord parker. Based on the mode or median point forecast, you may go confidently with your cord jacket and then potentially get soaked, whereas if your decision is based on the mean forecast, you might carry around an umbrella all day that you finally don't need. Let's assume the decision is whether today can finally be the day you should take your Picasso painted in pastel colours around town in an open carriage...
+
+TODO: Talk here a bit about the Bayesian angle of getting the full distribution and that way be independent of the subsequent decision.
+
+## Different error measures are minimal under different summary statistics of the forecast distribution
+
+Let's now assume we did our rainfall point forecast every day for a full week, and we now want to backtest how well our forecast performed. Common choices for error measures would here be RMSE and MAE, that we define as follows:
+
+$$\text{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^n(y_t-\hat{y_t})^2}$$
+$$\text{MAE} = \frac{1}{n}\sum_{t=1}^n|y_t-\hat{y_t}|$$
+
+They are averaging squared error (SE) and absolute error (AE):
+$$\text{SE}_t = (y_t-\hat{y_t})^2$$
+$$\text{AE}_t = |y_t-\hat{y_t}|$$
+
+It turns out mathematically (we will not go into the details here) that choosing the mean of the forecast distribution (as opposed to, e.g, the median) leads to the best RMSE, whereas the median leads to the best MAE.
+
+This means that with the choice of error measures, we request a certain summary statistic of the forecsat distribution. And these are not always clear or even well defined, for example the MAPE elicits TODO....
 
 TODO: Picture from @kolassa2020best I have re-created it for my slides, so can take it from the sources of my slides
 
+## In-sample versus out-of-sample performance
 
+Let's assume we have made the decision that we want to evaluate our forecast with, for example, RMSE. This decision is also in general not easy to make, and we'll get back to this in the next section, Section TODO:XYZ.
 
+If we are using a forecasting model that produces a full forecast distribution, like a Bayesian forecasting model such as TODO:CITE or TODO:CITE, this can be straightforward. We just calculate mean or median of the forecast distribution. In non-probabilistic forecasting methods where we do not produce a forecast distribution, this is modelled through the loss function. This again seems straightforward, but there are some caveats, mostly with respect to generalisation. Let's start with the losses and define the following framework.
 
-
-## Point forecasts are probabilistic!
-
-- When we forecast a future value $y_{t+h}$, we are really forecasting its **distribution**:
-  $$p(y_{t+h} \mid \text{information at time } t).$$
-
-- A **point forecast** $\hat{y}_{t+h}$ is a **single-number summary** of this distribution.
-
-- It is **not necessarily** the "most likely future value,"
-  but the value that is **optimal under a chosen loss function**.
-
-- So a point forecast is a **statistic** of the forecast distribution,
-  and therefore has **statistical properties** (bias, variance, etc.).
-
-
-## Point forecasts as optimal decisions
-
-Let $L(a, y)$ be the **loss** from predicting $a$ when the outcome is $y$.
-
-- A point forecast solves:
+Let $L(a, y)$ be the loss from predicting $a$ when the outcome is $y$. A point forecast solves:
   $$\hat{y}_{t+h} = \arg\min_{a} \mathbb{E}\!\left[ L(a, Y_{t+h}) \right].$$
 
-Different loss functions $\rightarrow$ different optimal summaries:
+Different loss functions in principle target different optimal summaries. For example, using squared error as the loss ($L(a,y) = (a-y)^2$) we target the mean, using absolute error as the loss ($L(a,y) = |a-y|$) we target teh median, and using 0–1 loss, which is one if the forecast is equal to the actual and zero otherwise ($L(a,y)=\mathbf{1}\{a \neq y\}$), we target the mode.
+We note that only in the case of the quite uncommon 0–1 loss the point forecast always coincedes with the most likely value.
 
-- Squared error: $L(a,y) = (a-y)^2$ $\rightarrow$ **mean**
-- Absolute error: $L(a,y) = |a-y|$ $\rightarrow$ **median**
-- 0–1 loss: $L(a,y)=\mathbf{1}\{a \neq y\}$ $\rightarrow$ **mode**
+TODO: generalisation. Examples from the literature where combined losses later improve both RMSE and MAE.
+TODO: What Daniel talked about that if the distribution is symmetric but non-normal, using L2 loss can be better, even though you use later MAE...
 
-Only in the 0–1 loss case is the point forecast the **most likely value**.
+TODO: So which loss should you be using? Often you have no choice. ARIMA, ETS....Chronos2. If you do have a choice...TODO: How to choose the loss function?
 
----
+## What is the right measure for you? Should you use different measures together?
 
-## Squared error loss (L2 loss)
+Some people argue that by picking a loss you have picked which summary statistic you want to elicit and therefore it makes no sense to use more than one error measure. We want to argue here in a different direction (TODO: This may not be a consensus among the authors):
 
-$$L(a,y) = (a-y)^2$$
+You may not know which summary statistic and therefore which error measure you actually want. There are some clear-cut examples. For example, if you have an intermittent time series (here, with intermittent we mean over 50% of the values of the series are zeros), using MAE for evaluation will elicit the median of the forecast distribution, which will marginally be a zero, so that your evaluation favors methods that always predict zeros. This is most likely not what you want and you should use RMSE for evaluation instead.
 
-$$\hat{y}_{t+h} = \mathbb{E}[Y_{t+h}]$$
+However, very often this is not clear, and you want to just have forecasts that will be suitable for the subsequent decision-making, without having a clear idea whether RMSE, or MAE, or some other measure better approximates your utility function of that decision.
 
-- Most common in practice (e.g. least squares, many time series models).
-- Forecast = **expected value** of the predictive distribution.
-
-## Absolute error loss (L1 loss)
-
-$$L(a,y) = |a-y|$$
-
-$$\hat{y}_{t+h} = \text{median of } Y_{t+h}$$
-
-- More robust to outliers.
-- Forecast = **median** of the predictive distribution.
-
-## 0–1 loss (L0 loss)
-
-$$L(a,y) = \begin{cases}
-0 & \text{if } a = y,\\
-1 & \text{otherwise}
-\end{cases}$$
-
-- Forecast = **mode** (most probable value).
+In this situation, using different error measures seems reasonable, to test the robustness of your forecasts.
 
 
-## The "most likely future value": the mode
-
-- The phrase **"most likely future value"** corresponds to the **mode** of the forecast distribution:
-$$\text{mode}(Y_{t+h}) = \arg\max_y \; p(y \mid \text{information at time } t).$$
-
-- The **mode** is the forecast distribution’s *peak*:
-  - the value with the highest probability mass (discrete case), or 
-  - the highest density (continuous case).
-
-## But typical point forecasts are *not* modes
-
-- Most classical forecasting methods (ARIMA, ETS, regression) produce **mean forecasts**, not mode forecasts.
-- These coincide only under *symmetric, unimodal* predictive distributions (e.g. Gaussian), where:
-  $$\text{mean} = \text{median} = \text{mode}.$$
-
-$\rightarrow$ Always think "what loss function is implicit here?" when interpreting or evaluating point forecasts.
 
 
-## Example: when mode, median, and mean differ
-
-Forecast distribution for tomorrow's rainfall:
-
-- 80% chance: 0 mm  
-- 15% chance: 5 mm  
-- 5% chance: 40 mm  
-
-Then:
-
-- **Mode:** $0$ mm — *most likely outcome*  
-- **Median:** $0$ mm — 50% quantile  
-- **Mean:**  $\mathbb{E}[Y] = 0 \cdot 0.8 + 5 \cdot 0.15 + 40 \cdot 0.05 = 3.25\ \text{mm}$
 
 $\rightarrow$ A model using squared-error loss would forecast **3.25 mm**,  
   even though **0 mm is much more likely**.
@@ -157,6 +115,10 @@ $\rightarrow$ It is the **mean** of the forecast distribution, chosen to minimiz
 
 <!-- This shows why a point forecast is a **decision under a loss function**,  
   not necessarily the most probable future value. -->
+
+
+
+
 
 ## Takeaways
 
@@ -173,25 +135,25 @@ $\rightarrow$ It is the **mean** of the forecast distribution, chosen to minimiz
   - reacts to skewness, heavy tails, etc.
 
 
+# Q2: How to deal with series on different scales, and non-stationarities, especially trends and level shifts?
 
-
-# Examples for different scenarios
+## Examples for different scenarios
 
 In the following we discuss some examples of different scenarios that require different evaluation measures.
 
 TODO: use case from retail: intermittent data, versus a use case of aggregated retail, versus financial time series.
 
-## Example for an easy, straightforward case: renewable energy production
+### Example for an easy, straightforward case: renewable energy production
 
 TODO: Show a picture
 
 The series has both a meaningful minimum and maximum. Min-max scaling can be used to normalise across, e.g., wind turbines of different sizes. Both normalised MAE or normalised RMSE seem appropriate.
 
-## Example for a non-normal, asymmetric distribution: intermittent retail forecasting
+### Example for a non-normal, asymmetric distribution: intermittent retail forecasting
 
 TODO: Show a picture
 
-## Example for strong trends, unknown scale: Bitcoin price data
+### Example for strong trends, unknown scale: Bitcoin price data
 
 TODO: Show a picture
 
@@ -606,6 +568,74 @@ If you need a scale-free measure and interpretability:
 - Foresight paper Ivan
 - Davydenkov and Fildes, 2013
 - Ivan's book: https://openforecast.org/adam/errorMeasures.html
+
+
+
+
+
+
+# Appendix 1: Old stuff
+
+
+Ivan recommends to both use mean and median:  "both the mean and median of the chosen metric"
+
+
+Forecasting is fundamentally a probabilistic exercise. When we predict a future value ( y_{t+h} ), we are not truly predicting a single number, but rather a full predictive distribution that reflects uncertainty about future outcomes given the information available at time ( t ). A point forecast is therefore best understood as a summary statistic of this distribution. Importantly, this summary is not inherently the “most likely future value.” Instead, it is the value that is optimal under a specific loss function, that is, the value that minimizes expected loss with respect to the predictive distribution. Seen this way, point forecasts are statistical objects with familiar properties such as bias and variance, and their interpretation depends critically on the criterion used to define optimality.
+
+Different loss functions lead to different optimal point forecasts because they emphasize different aspects of forecast errors. Under squared error loss, the optimal forecast is the mean of the predictive distribution, which explains why many standard forecasting methods implicitly target expected values. Under absolute error loss, the optimal forecast becomes the median, offering greater robustness to outliers and skewed distributions. Only under 0–1 loss does the optimal forecast coincide with the mode, the value with the highest probability or density. This distinction clarifies why the common phrase “most likely future value” is often misleading in practice: unless a mode forecast is explicitly targeted, most point forecasts are not modes. Mean, median, and mode coincide only in special cases such as symmetric, unimodal distributions. Consequently, interpreting or evaluating point forecasts always requires asking an essential question: which loss function—and therefore which summary of the predictive distribution—is being implicitly or explicitly used?
+
+
+
+TODO: Add stuff from Daniel. What if you don't know which loss is more relevant for your application? Could also say that in Bayesian procedures this becomes very explicit.
+
+ ## Which summary statistic do you want to elicit?
+
+
+
+## Point forecasts are probabilistic!
+
+- When we forecast a future value $y_{t+h}$, we are really forecasting its **distribution**:
+  $$p(y_{t+h} \mid \text{information at time } t).$$
+
+- A **point forecast** $\hat{y}_{t+h}$ is a **single-number summary** of this distribution.
+
+- It is **not necessarily** the "most likely future value,"
+  but the value that is **optimal under a chosen loss function**.
+
+- So a point forecast is a **statistic** of the forecast distribution,
+  and therefore has **statistical properties** (bias, variance, etc.).
+
+
+
+
+## The "most likely future value": the mode
+
+- The phrase **"most likely future value"** corresponds to the **mode** of the forecast distribution:
+$$\text{mode}(Y_{t+h}) = \arg\max_y \; p(y \mid \text{information at time } t).$$
+
+- The **mode** is the forecast distribution’s *peak*:
+  - the value with the highest probability mass (discrete case), or 
+  - the highest density (continuous case).
+
+## But typical point forecasts are *not* modes
+
+- Most classical forecasting methods (ARIMA, ETS, regression) produce **mean forecasts**, not mode forecasts.
+- These coincide only under *symmetric, unimodal* predictive distributions (e.g. Gaussian), where:
+  $$\text{mean} = \text{median} = \text{mode}.$$
+
+$\rightarrow$ Always think "what loss function is implicit here?" when interpreting or evaluating point forecasts.
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Appendix: Slides 2
