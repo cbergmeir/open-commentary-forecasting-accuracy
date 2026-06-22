@@ -5,673 +5,173 @@ author:
   - "Second Author \\ Institution B"
 date: \today
 abstract: |
-  Brief abstract goes here.
+  Point forecast evaluation is often discussed as if it were a matter of choosing a metric from a menu. We argue that this view is too shallow. Any evaluation of point forecasts requires three linked design decisions: which functional of the predictive distribution is being targeted, how errors are normalised, and how performance is aggregated across series or tasks. Confusion in practice and in academia typically arises when one or more of these decisions is made implicitly. This commentary therefore organises the discussion around three questions. First, because forecasting is inherently probabilistic, a point forecast should be understood as a summary of a predictive distribution, and the error measure should be aligned with that summary. Second, scale-free comparison always implies a benchmark, whether explicit or hidden in the denominator, and the suitability of that benchmark depends on the data characteristics, especially trend, seasonality, intermittency, and level changes. Third, any aggregation across series expresses a value judgement about which series or tasks matter more. We use these three questions to explain common misuse of MAPE and related measures, to clarify when measures such as WAPE, MASE, and RMSSE are defensible, and to argue that transparent evaluation design matters as much as the choice of forecasting model itself.
 ---
+
 # Introduction
 
-Forecasting is applied across a wide range of domains, each with distinct data characteristics, and there is currently no one-size-fits-all approach to evaluation. This diversity is leading to considerable confusion; in the worst cases, it is used as an excuse to persist with clearly inappropriate or outdated evaluation protocols. The aim of this commentary is to reflect as closely as possible the current consensus within the forecasting community on how (not) to evaluate point forecast accuracy in different scenarios. We also give explicit recommendations for which error measures to use, so that academics and practitioners hopefully are enabled to improve their practices by following the guidance provided here.
+In practice, people often ask a simple question: what is the best forecasting method? In academic papers, benchmark studies, and practitioner talks, that question is usually followed immediately by a ranking table. But rankings in forecasting are never purely about forecasting methods. They are also about the evaluation system used to compare them.
 
-<!-- ## Motivating examples of problems -->
+This is familiar from sports. It is easy to decide who is best at shot put: whoever throws furthest. It is much harder to decide who is the best all-round athlete, because then performances from different disciplines need to be transformed to a common scale and aggregated. The decathlon solves this with a point system that embodies explicit design choices about baselines, curvature, and aggregation. Forecast evaluation works in exactly the same way. Once we compare methods across horizons, series, datasets, or business units, the winner depends on the scoring system we have chosen, not only on the intrinsic quality of the model.
 
-We want to start with some motivating examples of problematic practices. The use of MAPE remains common. A frequent justification is along the lines of *``we know this metric has shortcomings, but the business insists on using it.''* 
+That distinction matters because practice and academia often have different objectives. In production, stakeholders frequently want a stable and interpretable key performance indicator, often ideally one percentage number that can be tracked over time. In academia, the goal is usually to compare methods as fairly and reproducibly as possible, even if the resulting measure is less intuitive for non-specialists. Neither objective is illegitimate, but they do not lead to the same evaluation design. Many current problems in the literature and in practice come from blurring these objectives, for example by using a metric because it is familiar, while ignoring what it rewards, what it penalises, and what kind of point forecast it implicitly prefers [@Hewamalage2023Forecast].
 
-TODO: Say briefly what the shortcomings of MAPE are. Also say that sMAPE doesn't make things better [@citeTODO].
+This commentary focuses on point forecast evaluation. Even so, the starting point is probabilistic. Forecasts are never deterministic statements about the future; they are statements about uncertainty. A point forecast is therefore not “the future value”, but a summary of a predictive distribution. Once this is recognised, three questions structure the evaluation problem.
 
-Many published papers in machine learning research that develop methods for long-term forecasting rely on normalized mean squared error (MSE) or similar metrics **TODO: Cite some papers, give example. Cite my youtube talk?**. This metric is not suitable for many forms of non-stationarity, such as trends, as the denominator will grow (assuming an upward trend), so if the unscaled error stays the same, the scaled error will reduce. Coincidentally, all datasets commonly used in these papers have no or negligible trends, so that the used measures are ok. However, this is usually not discussed in these papers and could therewith easily lead to practitioners using these measures inappropriately on trended series.
+First, which functional of the predictive distribution do we want the point forecast to represent: the mean, the median, the mode, or something else? Second, if we need scale-free comparison, what benchmark are we using to normalise errors, and is that benchmark reasonable for the series at hand? Third, once per-series errors have been computed, how should they be aggregated across series or tasks, and whose priorities does that aggregation reflect?
 
-More subtle issues are situations where for example MAE or MASE [@citeTODOHyndman2006] are used to compare (machine learning) models trained with an L1 loss with ETS or ARIMA models, which are typically estimated via maximum likelihood and therefore optimized for the conditional mean of the forecast distribution. Such comparisons conflate fundamentally different optimization objectives.
+The rest of the paper is organised around these three questions. Section 1 argues that all point forecast evaluation starts from a predictive distribution and that an error measure should be coherent with the summary statistic one wants to elicit. Section 2 argues that normalisation is never neutral: every scale-free measure embeds a benchmark and inherits its strengths and weaknesses. Section 3 argues that aggregation across series is an explicit value judgement and should be treated as such. Our main message is simple: there is no universally best error measure, but there are many choices that are poorly aligned with the forecasting problem and should therefore no longer be used by default.
 
-Our focus here is on **point forecasting**. That said, we discuss in Section XYZ that all forecasts are inherently probabilistic, even when only point predictions are reported. Some argue that forecasts should always communicate uncertainty explicitly, for example through prediction intervals. While we agree with this position in principle, we nonetheless restrict the scope of this paper to the evaluation of point forecasts.
+# 1 Forecasting is always probabilistic
 
+Forecasting is fundamentally different from problems in which the target can in principle be predicted almost perfectly. In most forecasting settings there is irreducible uncertainty, and thus there is almost always a non-degenerate distribution for the future value. Whether this distribution is produced explicitly by a probabilistic model or only implicitly by a point forecasting workflow is secondary. Conceptually, the object of interest is the predictive distribution $Y_{t+h} \mid \mathcal{F}_t$, not a single number.
 
-<!-- Measures are misused, in practice and in academia. Examples: 
+This point is well understood in the statistical forecasting literature [@gneiting2007strictly], but it is still easy to forget when working with leaderboards, forecasting competitions, or business dashboards. A model may output one number, yet that number is meaningful only as a particular summary of uncertainty. Classical state space models estimated by likelihood typically target a conditional mean; quantile methods target specific quantiles; intermittent-demand methods often need special care because the predictive distribution is highly asymmetric and concentrated near zero. Modern machine learning systems may or may not output an explicit distribution, but the same logic applies: the point forecast is only interpretable relative to the loss or scoring rule that defines it.
 
-    - ML research in academia. Point to the papers that use some normalised MSE without checking stationarity.
-    - Practice (and academia): Use of MAPE is still very common
-    "we use XYZ, we know it is not good but the business wants to use this metric". This is not good enough anymore.
-    - more sutile: using MAE (or MASE) to compare ML models trained with L1 loss with ETS and ARIMA, that train with Maximum likelihood, therewith for the mean of the forecast distribution.
+## 1.1 A point forecast is a summary statistic, not the future itself
 
-Forecasting is done in very different domains with very different data characteristics and there is no one-size-fits all approach for evaluation. However, this leads to a lot of confusion, and in the worst situation it is used as an excuse to stick to clearly inappropriate and outdated evaluation protocols.
+Consider a stylised rainfall forecast for tomorrow:
 
-The aim of this commentary is to represent as closely as possible what is the current consensus among the forecasting community about how to evaluate point accuracy in different scenarios.
+- probability $0.80$ of $0$ mm,
+- probability $0.15$ of $5$ mm,
+- probability $0.05$ of $40$ mm.
 
-We talk here about point forecasting. However, we'll discuss in Section XYZ that forecasts are always probabilistic, even if we do point forecasting. There are people out there that argue that forecasting should always show the spread, e.g., through intervals. While we agree to this in spirit, we will nonetheless focus in this paper on point forecasting.
- -->
-
-
-TODO: In general, there are two things to consider: 1) Which loss to use, which summary statistic to elicit. And 2) How to normalise. Both aspects depend on the distribution of the time series.
-
-# Q1: Forecasting is always probabilistic, forecasts are never 100% correct and always bear uncertainty.
-
-Forecasting is not like classification of images of cats versus dogs, where you may have nearly no noise in the signal and you may be able to achieve 100% accuracy. Forecasting is fundamentally a probabilistic exercise, and nearly always forecasts will have some irreducible uncertainty inherent to them, which means there typically is a limit to the accuracy you can achieve, no matter your methodology. Furthermore, we always need to consider the forecast distribution, which is the distribution of a currently unknown future value that we aim to forecast. If we now decide to produce a point forecast, that point forecast is best understood as a summary statistic, summarising the forecast distribution into a single value. Straightforward choices for this summary statistic are mean, median, or mode. As such **point forecasts are statistical objects with familiar properties such as bias and variance. Their interpretation depends critically on the criterion used to define optimality.**
-
-## Calculating point forecasts from a forecast distribution: A motivating example, tomorrow's weather forecast
-
-Let's assume we have the following forecast distribution of tomorrow's rainfall: 80% chance: 0 mm, 15% chance: 5 mm, 5% chance: 40 mm. 
-TODO: The distribution is visualised in Figure TODO
-
-Which point forecast should we pick? A layman may assume that forecasting intends to produce the most likely future value, which in statistical terms is the mode. In our example, the mode is $0$ mm, i.e., no rain. The median is the 50th percentile, which in our example is again $0$ mm, no rain. The mean comes to $\mathbb{E}[Y] = 0 \cdot 0.8 + 5 \cdot 0.15 + 40 \cdot 0.05 = 3.25\ \text{mm}$.
-
-Forecasting is (almost) always a means to an end, usually for subsequent decision-making. **While the forecast distribution is in principle independent of the subsequent decision, the point forecast is not.**
-
-Coming back to our example, the decision to be made could be whether you should carry an umbrella, put on a light all-weather jacket, or can go with your cord parker. Based on the mode or median point forecast, you may go confidently with your cord jacket and then potentially get soaked, whereas if your decision is based on the mean forecast, you might carry around an umbrella all day that you finally don't need. Let's assume the decision is whether today can finally be the day you should take your Picasso painted in pastel colours around town in an open carriage...
-
-TODO: Talk here a bit about the Bayesian angle of getting the full distribution and that way be independent of the subsequent decision.
-
-## Different error measures are minimal under different summary statistics of the forecast distribution
-
-Let's now assume we did our rainfall point forecast every day for a full week, and we now want to backtest how well our forecast performed. Common choices for error measures would here be RMSE and MAE, that we define as follows:
-
-$$\text{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^n(y_t-\hat{y_t})^2}$$
-$$\text{MAE} = \frac{1}{n}\sum_{t=1}^n|y_t-\hat{y_t}|$$
-
-They are averaging squared error (SE) and absolute error (AE):
-$$\text{SE}_t = (y_t-\hat{y_t})^2$$
-$$\text{AE}_t = |y_t-\hat{y_t}|$$
-
-It turns out mathematically (we will not go into the details here) that choosing the mean of the forecast distribution (as opposed to, e.g, the median) leads to the best RMSE, whereas the median leads to the best MAE.
-
-This means that with the choice of error measures, we request a certain summary statistic of the forecsat distribution. And these are not always clear or even well defined, for example the MAPE elicits TODO....
-
-TODO: Picture from @kolassa2020best I have re-created it for my slides, so can take it from the sources of my slides
-
-## In-sample versus out-of-sample performance
-
-Let's assume we have made the decision that we want to evaluate our forecast with, for example, RMSE. This decision is also in general not easy to make, and we'll get back to this in the next section, Section TODO:XYZ.
-
-If we are using a forecasting model that produces a full forecast distribution, like a Bayesian forecasting model such as TODO:CITE or TODO:CITE, this can be straightforward. We just calculate mean or median of the forecast distribution. In non-probabilistic forecasting methods where we do not produce a forecast distribution, this is modelled through the loss function. This again seems straightforward, but there are some caveats, mostly with respect to generalisation. Let's start with the losses and define the following framework.
-
-Let $L(a, y)$ be the loss from predicting $a$ when the outcome is $y$. A point forecast solves:
-  $$\hat{y}_{t+h} = \arg\min_{a} \mathbb{E}\!\left[ L(a, Y_{t+h}) \right].$$
-
-Different loss functions in principle target different optimal summaries. For example, using squared error as the loss ($L(a,y) = (a-y)^2$) we target the mean, using absolute error as the loss ($L(a,y) = |a-y|$) we target teh median, and using 0–1 loss, which is one if the forecast is equal to the actual and zero otherwise ($L(a,y)=\mathbf{1}\{a \neq y\}$), we target the mode.
-We note that only in the case of the quite uncommon 0–1 loss the point forecast always coincedes with the most likely value.
-
-TODO: generalisation. Examples from the literature where combined losses later improve both RMSE and MAE.
-TODO: What Daniel talked about that if the distribution is symmetric but non-normal, using L2 loss can be better, even though you use later MAE...
-
-TODO: So which loss should you be using? Often you have no choice. ARIMA, ETS....Chronos2. If you do have a choice...TODO: How to choose the loss function?
-
-## What is the right measure for you? Should you use different measures together?
-
-Some people argue that by picking a loss you have picked which summary statistic you want to elicit and therefore it makes no sense to use more than one error measure. We want to argue here in a different direction (TODO: This may not be a consensus among the authors):
-
-You may not know which summary statistic and therefore which error measure you actually want. There are some clear-cut examples. For example, if you have an intermittent time series (here, with intermittent we mean over 50% of the values of the series are zeros), using MAE for evaluation will elicit the median of the forecast distribution, which will marginally be a zero, so that your evaluation favors methods that always predict zeros. This is most likely not what you want and you should use RMSE for evaluation instead.
-
-However, very often this is not clear, and you want to just have forecasts that will be suitable for the subsequent decision-making, without having a clear idea whether RMSE, or MAE, or some other measure better approximates your utility function of that decision.
-
-In this situation, using different error measures seems reasonable, to test the robustness of your forecasts.
-
-
-
-
-
-$\rightarrow$ A model using squared-error loss would forecast **3.25 mm**,  
-  even though **0 mm is much more likely**.
-
-$\rightarrow$ 3.25 mm is **not** a "likely" value in the everyday sense.
-
-$\rightarrow$ It is the **mean** of the forecast distribution, chosen to minimize expected squared error.
-
-<!-- This shows why a point forecast is a **decision under a loss function**,  
-  not necessarily the most probable future value. -->
-
-
-
-
-
-## Takeaways
-
-- A point forecast is a **decision**, not "the future".
-- It is a **summary statistic** of the predictive distribution:
-  - Mean (squared error)
-  - Median (absolute error)
-  - Mode (0–1 loss)
-
-- Its interpretation depends on the **loss function**.
-- Because it’s a statistic, it has **statistical properties**:
-  - can be biased/unbiased,
-  - has variance,
-  - reacts to skewness, heavy tails, etc.
-
-
-# Q2: How to deal with series on different scales, and non-stationarities, especially trends and level shifts?
-
-## Examples for different scenarios
-
-In the following we discuss some examples of different scenarios that require different evaluation measures.
-
-TODO: use case from retail: intermittent data, versus a use case of aggregated retail, versus financial time series.
-
-### Example for an easy, straightforward case: renewable energy production
-
-TODO: Show a picture
-
-The series has both a meaningful minimum and maximum. Min-max scaling can be used to normalise across, e.g., wind turbines of different sizes. Both normalised MAE or normalised RMSE seem appropriate.
-
-### Example for a non-normal, asymmetric distribution: intermittent retail forecasting
-
-TODO: Show a picture
-
-### Example for strong trends, unknown scale: Bitcoin price data
-
-TODO: Show a picture
-
-
-
-
-
-# Error measures
-
-* Overviews by @Hyndman2006Another and @Hewamalage2023Forecast
-* Still controversial, no solution that always works
-* Still papers that come up with their own ad-hoc measure
-* Measures often misused
-
-## Scale-dependent errors and error measures
-
-\small
-
-Scale-dependent errors: squared error (SE), absolute error (AE):
-$$\text{SE}_t = (y_t-\hat{y_t})^2$$
-$$\text{AE}_t = |y_t-\hat{y_t}|$$
-
-Corresponding error measures, e.g., RMSE and MAE:
-$$\text{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^n(y_t-\hat{y_t})^2}$$
-$$\text{MAE} = \frac{1}{n}\sum_{t=1}^n|y_t-\hat{y_t}|$$
-
-### RMSE
-
-  - MSE is equal to Bias$^2$+Var, so if model is unbiased, RMSE and standard dev of the error are the same
-  - is minimised by predicting the mean of the forecast distribution
-  - penalises large errors more heavily
-  - minimising RMSE leads to (mean-)unbiased forecasts
-
-### MAE
-
-  - sometimes also called mean absolute deviation (MAD)
-  - is minimised by predicting the median of the forecast distribution
-  - more robust to outliers and large errors
-  - minimising MAE can lead to (mean-)biased forecasts if forecast distribution is skewed
-  - for series with small integer values, minimising MAE will lead to predictions that are small integers (as median of forecast distribution is an integer)
-  - for intermittent series, minimising MAE can lead to predicting only zeros, and heavily biased forecasts towards underprediction, as median of the forecast distribution is zero.
-
-
-### Scale-dependent error measures: RMSE and MAE
-
-- Advantages: Are on the same scale as the data, are interpretable
-- Problem: If series are on very different scales, some series can dominate the evaluation
-- We need a scale-free measure.
-- We need to divide by "something"
-- After 30 years of research in forecasting, we have still not found this "something" in a way that it works under any possible non-stationarity and series characteristics.
-- There are over 40 error measures proposed in the literature that we are aware of  (sMAPE, MASE, etc.)
-
-
-### Problems: Non-stationarity, Non-normality
-
-<!-- Talk on this slide also about the different scales of the series -->
-
-```{r echo=FALSE, fig.width=12, fig.height=4, out.width="100%", out.height="20%"}
-plot(AirPassengers)
-```
-
-```{r echo=FALSE, fig.width=12, fig.height=4, out.width="100%", out.height="20%"}
-set.seed(3)
-plot(cumsum(rnorm(1000))+10, type="l", ylab="Price")
-```
-
-```{r echo=FALSE, fig.width=12, fig.height=4, out.width="100%", out.height="20%"}
-library(fpp2)
-plot(elecdemand[3000:6000,"Demand"]*1000, type="l", ylab="Electricity demand")
-```
-
-```{r echo=FALSE, fig.width=12, fig.height=4, out.width="100%", out.height="20%"}
-set.seed=5
-plot(rpois(200, lambda = 0.5), type="l", ylab="Sales")
-```
-
-
-## scaled errors: MAPE
-
-
-### Percentage Errors (PE)
-
-$$\text{PE}_t = 100\ \frac{y_t-\hat{y_t}}{y_t},\ \ \ \ \text{MAPE} = \frac{1}{n}\sum_{t=1}^n \left|100\ \frac{y_t-\hat{y_t}}{y_t}\right|$$
-
-- Problem: Cannot be used if $y_t$ is zero and is distorted when $y_t$ is small. Was originally used for inventory count data.
-- Is also not symmetric: exchanging the prediction and the true value changes the result
-- Is minimised by the "(--1)-median" of the forecast distribution
-
-### 50% of error can have very different consequences
-
-MAPE tends to focus more on the series with small values as they tend to have large errors
-
-```{r echo=FALSE, fig.width=12, fig.height=4, out.width="100%", out.height="20%"}
-plot(AirPassengers)
-```
-
-```{r echo=FALSE, fig.width=12, fig.height=4, out.width="100%", out.height="20%"}
-library(fpp2)
-plot(elecdemand[3000:6000,"Demand"]*1000, type="l", ylab="Electricity demand")
-```
-
-```{r echo=FALSE, fig.width=12, fig.height=4, out.width="100%", out.height="20%"}
-set.seed=5
-plot(rpois(200, lambda = 0.5), type="l", ylab="Sales")
-```
-
-
-
-### Solution: symmetric MAPE (sMAPE)
-
-$$\text{sMAPE} = \frac{1}{n}\sum_{t=1}^n \left|100\ \frac{y_t-\hat{y_t}}{\frac{|y_t|+|\hat{y_t}|}{2}}\right| = 200 \frac{1}{n}\sum_{t=1}^n \left| \frac{y_t-\hat{y_t}}{|y_t|+|\hat{y_t}|}\right|$$
-
-\footnotesize
-
-- Achieves symmetry from before, but breaks another symmetry: overprediction is penalised less than underprediction (as dividing by the prediction)
-- Still has problems with zeros; if both actual and prediction are zero, it is not defined
-- If there is a zero in the data and we don't predict an exact zero, the sMAPE is maximal. 
-- This has large implications for intermittent data: If you use sMAPE to evaluate intermittent forecasts, your main concern will be to predict zeros as exact zeros.
-- Big advantage: sMAPE is bounded by 200, will never go higher.
-
-<!-- Also, if $y_t = 0$ -->
-<!-- $$\left| \frac{y_t-\hat{y_t}}{|y_t|+|\hat{y_t}|}\right| = \left|  \frac{\hat{-y_t}}{|\hat{y_t}|}\right| = 1, \text{ if } \hat{y_t} \neq 0$$ -->
-
-### modified sMAPE [@Suilin2017kaggle]
-
-$$\text{msMAPE} = 200 \frac{1}{n}\sum_{t=1}^n \left| \frac{y_t-\hat{y_t}}{max(|y_t| + |\hat{y_t}| + \epsilon, 0.5 + \epsilon)}\right|$$
-With a default of $\epsilon = 0.1$
-
-- ad-hoc solution for problems with zeros and small values
-- will make the evaluation skewed and is not minimised by any meaningful summary statistic of the forecast distribution
-
-<!-- ### Mean Arctangent Abs. Percentage Error (MAAPE)
-
-$$\text{MAAPE} = \frac{1}{n}\sum_{t=1}^n arctan \left(\left|\frac{y_t-\hat{y_t}}{y_t}\right|\right)$$
-
-- Proposed by @Kim2016new
-- Authors argue it is as interpretable as MAPE
-- Advantage: It is $\pi/2$ instead of $\infty$, when $y_t$ is zero 
-- Has the same problem as sMAPE that if $y_t$ is zero, it always is maximal, no matter what $\hat{y}_t$ is
-- Therefore, not good for intermittent data
-
-
- -->
-
-
-
-
-
-
-
-
-
-
-
-## scaled measures: WAPE, normalised MSE, etc.
-
-* Only use them if data is stationary, e.g., intermittent series. 
-* TODO: What about data that is seasonal but has no trend?
-
-
-### Weighted (Mean) Absolute Percentage Error (WAPE)
-
-$$\text{WAPE} = \frac{\sum_{t=1}^n\left|y_t-\hat{y}_t\right|}{\sum_{t=1}^n \left|y_t\right|}$$
-
-- @Belt2017When and @Kolassa2007Advantages argue for this measure to be used in demand forecasting
-- Called "weighted" as MAE can be seen as a weighted (scaled) version of MAPE
-- WAPE is also called MAD/mean ratio (if all actuals are non-negative)
-
-### Squared and bias error measures
-
-Weighted Bias Percentage Error (WBPE):
-$$\text{WBPE} = \frac{\sum_{t=1}^n\left(\hat{y}_t-y_t\right)}{\sum_{t=1}^n y_t}$$
-
-Weighted Root Mean Squared Percentage Error (WRMSPE):
+If we insist on reporting one number, several defensible summaries are available. The mode is $0$ mm, because no rain is the most likely single outcome. The median is also $0$ mm, because the cumulative probability already exceeds $0.5$ at zero. The mean is
 
 $$
-\text{WRMSPE} = \frac{\sqrt{\sum_{t=1}^n\left(y_t-\hat{y}_t\right)^2}}{\sum_{t=1}^n \left|y_t\right|}
+\mathbb{E}[Y] = 0 \cdot 0.80 + 5 \cdot 0.15 + 40 \cdot 0.05 = 2.75 \text{ mm}.
 $$
 
-As discussed before, WRMSPE measures for an unbiased model the standard deviation 
+None of these summaries is “the correct forecast” in isolation. Each is correct for a different purpose. If the decision is whether to carry a small umbrella, the mean may be more relevant than the mode because the small probability of heavy rain matters. If the decision is whether rain is more likely than not, the mode or median may be more natural. The predictive distribution is in principle independent of the downstream decision; the point forecast is not. Choosing a point forecast is therefore already part of decision design.
 
-### Squared and bias error measures (2)
+This observation is central and often underappreciated in practice. People sometimes talk as if the point forecast should be the “most likely value”. That is only true under a very particular loss, namely a 0--1 loss that rewards exact hits and penalises all misses equally. For continuous outcomes that loss is rarely useful. In most business settings, missing by a large amount is worse than missing by a small amount, so the choice of point forecast must depend on how errors are valued.
 
-- In retail/e-commerce, it is beneficial to monitor both bias and overall error. 
-- If one overall number needs to be measured, practitioners have proposed to use WAPE+WBPE
+## 1.2 Different error measures elicit different summaries
 
-<!-- ## Error measures (3) -->
-
-<!-- Show example from the LS-Net paper. -->
-
-<!-- @Lai2018Modeling -->
-
-<!-- Root Relative Squared Error (RSE), Empirical Correlation Coefficient (CORR) -->
-
-### Calculating WAPE/WRMSPE per series and across series
- 
-\footnotesize
- 
-- In the WAPE, we divide by $\sum_{t=1}^n \left|y_t\right|$
-- This sum can run over each series individually or over all series
-- Running over all series:
-  - \footnotesize  It is now an MAE (i.e., a scaled measure) globally scaled to be a percentage
-  - Essentially same as MAE, but slightly more interpretable
-  - As in MAE, series with higher values get more importance in the error
-- Running per series:
-  - \footnotesize  Scale-free
-  - Only works if we have more than one forecast, otherwise same as MAPE
-  - If the whole test set is zero, we divide by zero
-
-### Advantages and disadvantages of WAPE/WRMSPE
-
-Advantages:   
-
-  - Only divides by zero if whole test set is zero
-  - Minimised by the median of the forecast distribution
-  - Interpretable as a percentage
-
-Disadvantages:
-
-  - Only consistent estimator when series is stationary [@Hyndman2025WAPE]
-  - Can be seen as RelMAE where benchmark method is a constant zero: works well if a constant zero is a reasonable benchmark
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Using a benchmark: RelMAE
-
-* benchmark has to be adequate, if performance of benchmark varies widely, the measure will change even though our forecast errors stay the same.
-
-WAPE can be seen as having a constant zero as the benchmark. Use when a constant zero is an adequate benchmark.
-
-
-### Relative errors and error measures
-
-Use a benchmark method $B$ (usually the naive forecast)
-
-Relative Errors:
-$$\text{RE}_t = \frac{y_t-\hat{y_t}}{y_t-\hat{y}_{tB}},\ \ \ \ \text{MRAE} = \frac{1}{n}\sum_{t=1}^n \left|\frac{y_t-\hat{y_t}}{y_t-\hat{y}_{tB}}\right|.$$
-$\rightarrow$ Same problems as before, if true values are zero and predictions from the benchmarks are zero, etc.
-
-Relative Error Measures:
-$$\text{RelMAE} = \frac{\text{MAE}}{\text{MAE}_B}.$$
-Only has benefits if we are evaluating many predictions on the same scale. If series on different scales and only one forecast per series, it has the same problems as before.
-
-
-
-
-
-## Using a benchmark over the training set: MASE, RMSSE
-
-- is MASE/RMSSE interpretable?
-
-### Mean Absolute Scaled Error (MASE)
-
-- Proposed by @Hyndman2006Another
-- Defined as the MAE divided by the MAE of the (seasonal) naive forecast over the training part of the time series.
-
-$$\text{MASE} = \frac{\sum_{t=1}^{n} |\hat{y}_{t} - y_{t}|}{\frac{n}{m - s}\sum_{k=s+1}^{m} |y_{k} - y_{k - s}|}$$
-
-- RMSSE: Equivalent with squared errors
-- Used in the M5 competition
-
-$$\text{RMSSE} = \sqrt\frac{\sum_{t=1}^{n} (\hat{y}_{t} - y_{t})^2}{\frac{n}{m - s}\sum_{k=s+1}^{m} (y_{k} - y_{k - s})^2}$$
-
-### MASE and RMSSE: Advantages
-
-Resolve many problems that other measures have:
-
-  - are minimised by the mean/median of the forecast distribution
-  - are scale-free
-  - hardly any problems with zeros or intermittency
-  - cope well with many types of non-stationarity 
-    - remainder of the benchmark needs to be stationary for estimator to be consistent
-    - when using naive: series needs to be difference stationary
-  - Interpretation: If MASE $<1$, forecast is on average better than naive
-
-### MASE and RMSSE: Problems
-
-\footnotesize
-
-  - As with other measures, MASE/RMSSE depend on how meaningful the chosen benchmark is
-  - The naive forecast works a lot better on certain (smooth) series than on others. 
-  - Different benchmarks in use (naive, seasonal naive, could also use more complex methods like ARIMA, SES, etc.)
-  - Difficult to choose benchmark with fixed origin forecasting: many different horizons are in use
-  - Series can have significant changes between training and test set
-  
-  $\rightarrow$ In practice often difficult to interpret
-  
-  $\rightarrow$ High or low MASE is not necessarily equivalent with good or bad (absolute) performance.
-
-### Examples for problems with MASE/RMSSE
-
-<!-- TODO -->
-
-### Should you use MASE or RMSSE?
-
-- Why did the original authors propose MASE and not RMSSE? 
-  - Original paper proposed MASE to stay close to MAPE so that people would switch
-  - Idea was that MASE was easier to understand and more likely to be adopted
-  - No big difference between MASE and RMSSE for classical models that assume Gaussian errors
-- RMSSE adequate in many more situations than MASE (equivalent to a discussion RMSE vs MAE)
-
-
-
-# Calculating error measures per series and across series
-
-TODO: Show a picture
-
-TODO: Exlain the 3 dimensions. Should this come before or after the error measures?
-
-Three dimensions along which we can potentially aggregate:
-* horizons
-* rolling origins
-* different time series
-
-Each dimension can collapse: only one horizon, only one origin, only one time series. This can cause problems with divisions by zero, small numbers, and others.
-
-* We want to aggregate and divide by a normalising factor
-* If we divide first, we have problems with division by zero and numerical instability
-* If we aggregate first, we need to make sure that what we aggregate is on the same scale
-* That usually means we don't want to aggregate from different series before normalising.
-* Already within a single series there can be problems (see the WAPE)
-
-
-
-
-# Recommendations
-
-There is no one size fits all. 
-
-If you are an academic: use RMSSE
-If your series are intermittent: do XYZ ...
-
-TODO: If you are an academic, clearly say what type of forecasting you are addressing. Do not just say "forecasting". Try to be specific. Say for example: seasonal series without trends.
-
-## Error measures: Summary
-
-![Figure: Error measures table](images/table_error_measures.png)
-
-
-## Error measures: Summary (2)
-
-- To get a scale-free measure, we need to divide by a normalising factor
-- Due to the potential non-stationarity and non-normality (e.g. intermittency) of the series, it has turned out to be extremely difficult to do this in a way that always works
-- Today, the RMSSE and MASE are standard error measures, e.g., in the recent M5 competition
-  - but have problems with structural breaks between training and test set
-  - may not be interpretable, especially with long horizons / fixed origins
-- It depends on the characteristics of your data which measure will be adequate
-
-## Error measures: Recommendations
-
-- If you currently use the MAPE or sMAPE, switch to something else
-- Do not invent your own measure, it will be more difficult than you think
-- Some people (S. Kolassa) argue against using multiple measures
-- Different measures are minimised by different summary statistics over the forecast distribution
-- My take: choose a primary metric (RMSSE) that coincides with your loss function (L2)
-- And then using the others for sanity-checking seems reasonable 
-
-## Error measures: Recommendations (2)
-
-- When building a global model, often the series have meaningful scales (SKUs, dollars, ...)
-- If you don't need a scale-free measure, better stick to MAE, RMSE
-
-## Error measures: Recommendations (3)
-
-If you need a scale-free measure:
-
-  - if you will benchmark different methods broadly to conclude which one is best and you don't need interpretability
-    - this is the standard scenario for scientific papers about forecasting methodology
-    - use RMSSE
-    - use MASE only if there are reasons to elicit the median of the forecasting distribution, and if all your compared methods use this loss
-    - if you evaluate over a mix of methods, some trained with L1 loss, some with L2 (or similar): report both MASE and RMSSE
-
-## Error measures: Recommendations (4)
-
-If you need a scale-free measure and interpretability:
-
-  - use WAPE, WRMSPE, WBPE; proceed with caution
-  - WAPE, WRMSPE, WBPE could also be normalised with a sum over the training set instead of the test set (??)
-  - use RMSSE/MASE but with the denominator running over the test set if horizons are long, and with the same (fixed-origin) setup for your benchmark method (??)
-
-
-
-
-
-# References {.unnumbered}
-
-::: {#refs}
-:::
-
-\newpage
-
-\appendix
-
-# References to add
-
-- Rob's paper 2006
-- Foresight paper Ivan
-- Davydenkov and Fildes, 2013
-- Ivan's book: https://openforecast.org/adam/errorMeasures.html
-
-
-
-
-
-
-# Appendix 1: Old stuff
-
-
-Ivan recommends to both use mean and median:  "both the mean and median of the chosen metric"
-
-
-Forecasting is fundamentally a probabilistic exercise. When we predict a future value ( y_{t+h} ), we are not truly predicting a single number, but rather a full predictive distribution that reflects uncertainty about future outcomes given the information available at time ( t ). A point forecast is therefore best understood as a summary statistic of this distribution. Importantly, this summary is not inherently the “most likely future value.” Instead, it is the value that is optimal under a specific loss function, that is, the value that minimizes expected loss with respect to the predictive distribution. Seen this way, point forecasts are statistical objects with familiar properties such as bias and variance, and their interpretation depends critically on the criterion used to define optimality.
-
-Different loss functions lead to different optimal point forecasts because they emphasize different aspects of forecast errors. Under squared error loss, the optimal forecast is the mean of the predictive distribution, which explains why many standard forecasting methods implicitly target expected values. Under absolute error loss, the optimal forecast becomes the median, offering greater robustness to outliers and skewed distributions. Only under 0–1 loss does the optimal forecast coincide with the mode, the value with the highest probability or density. This distinction clarifies why the common phrase “most likely future value” is often misleading in practice: unless a mode forecast is explicitly targeted, most point forecasts are not modes. Mean, median, and mode coincide only in special cases such as symmetric, unimodal distributions. Consequently, interpreting or evaluating point forecasts always requires asking an essential question: which loss function—and therefore which summary of the predictive distribution—is being implicitly or explicitly used?
-
-
-
-TODO: Add stuff from Daniel. What if you don't know which loss is more relevant for your application? Could also say that in Bayesian procedures this becomes very explicit.
-
- ## Which summary statistic do you want to elicit?
-
-
-
-## Point forecasts are probabilistic!
-
-- When we forecast a future value $y_{t+h}$, we are really forecasting its **distribution**:
-  $$p(y_{t+h} \mid \text{information at time } t).$$
-
-- A **point forecast** $\hat{y}_{t+h}$ is a **single-number summary** of this distribution.
-
-- It is **not necessarily** the "most likely future value,"
-  but the value that is **optimal under a chosen loss function**.
-
-- So a point forecast is a **statistic** of the forecast distribution,
-  and therefore has **statistical properties** (bias, variance, etc.).
-
-
-
-
-## The "most likely future value": the mode
-
-- The phrase **"most likely future value"** corresponds to the **mode** of the forecast distribution:
-$$\text{mode}(Y_{t+h}) = \arg\max_y \; p(y \mid \text{information at time } t).$$
-
-- The **mode** is the forecast distribution’s *peak*:
-  - the value with the highest probability mass (discrete case), or 
-  - the highest density (continuous case).
-
-## But typical point forecasts are *not* modes
-
-- Most classical forecasting methods (ARIMA, ETS, regression) produce **mean forecasts**, not mode forecasts.
-- These coincide only under *symmetric, unimodal* predictive distributions (e.g. Gaussian), where:
-  $$\text{mean} = \text{median} = \text{mode}.$$
-
-$\rightarrow$ Always think "what loss function is implicit here?" when interpreting or evaluating point forecasts.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Appendix: Slides 2
-
-
-## Back to the basics: Measuring variance, bias
-
-![Figure: targets_drawing2](images/targets_drawing2.pdf)
-
-## Measuring variance, bias (2)
-
-- Bias and variance have different consequences for a business (to always underpredict may lead to having always stockouts)
-- Bias can be measured with the mean error:
+Formally, a point forecast solves
 
 $$
-	\textit{ME} = \frac{1}{n}\sum_{t=1}^{n} (y_t - \hat{y_t})
+\hat{y}_{t+h} = \arg\min_a \mathbb{E}\left[L(a, Y_{t+h})\right],
 $$
 
-- If $\textit{ME}>0$, model underpredicts on average, it is negatively biased
-- If $\textit{ME}<0$, model overpredicts on average, it is positively biased
-- Thus, bias is $-ME$
+where $L(a,y)$ is the loss incurred by predicting $a$ when the outcome is $y$. Different losses elicit different optimal summaries of the predictive distribution [@gneiting2007strictly; @kolassa2020best]. For the most common cases:
 
-## Measuring variance, bias (3)
+- squared error $L(a,y)=(a-y)^2$ elicits the mean,
+- absolute error $L(a,y)=|a-y|$ elicits the median,
+- 0--1 loss elicits the mode.
 
-- We can measure the variance as:
+This immediately implies that the common point forecast measures are not interchangeable. Root mean squared error (RMSE) and mean absolute error (MAE) are not just two different ways of summarising the same notion of accuracy. They reward different forecast targets. If two models produce similar predictive distributions but one is better at estimating the mean while the other is better at estimating the median, RMSE and MAE may rank them differently without either ranking being wrong.
+
+This is one reason why the blanket question “should I use RMSE or MAE?” has no universal answer. If the business decision is approximately linear in the absolute deviation, MAE may be appropriate. If large misses are disproportionately costly and the forecast target is a mean, RMSE may be preferable. If the predictive distribution is symmetric, the distinction is often less consequential because mean and median coincide, which is why RMSE- and MAE-based comparisons can sometimes agree in simple stationary settings [@Hyndman2006Another; @Hewamalage2023Forecast]. But in skewed or intermittent settings the distinction matters a great deal.
+
+## 1.3 Why MAPE and sMAPE remain problematic
+
+The appeal of percentage errors is easy to understand. They seem scale-free and are easy to explain to non-specialists. That appeal, however, should not obscure their conceptual and statistical problems.
+
+Mean absolute percentage error (MAPE) is undefined when the actual value is zero, unstable when the actual value is small, asymmetric in undesirable ways, and not elicitable by a meaningful central functional in general [@Hyndman2006Another; @kolassa2020best]. It therefore does not simply target “the mean in percentage terms” or “the median in percentage terms”. In practical terms, it tends to reward underforecasting in many settings and can produce deeply misleading results when small denominators occur.
+
+Symmetric MAPE (sMAPE) does not resolve the underlying problem. It fixes one notion of asymmetry by changing the denominator, but introduces others, remains problematic around zeros, and can assign extreme penalties in intermittent-demand settings precisely when many actual values are zero. Adding arbitrary constants or ad hoc lower bounds to these denominators may improve numerical stability, but then one loses any clear understanding of what functional the measure is eliciting. Once the denominator is engineered by hand, the metric may remain computable while ceasing to have a clean decision-theoretic interpretation.
+
+For these reasons, we argue that MAPE should no longer be used as a default point forecast measure, and that sMAPE should not be treated as its clean fix. Their continued use is best explained historically and institutionally, not statistically.
+
+## 1.4 The training loss and the evaluation measure should usually align
+
+The same logic extends from evaluation to model estimation. If a model is estimated under a criterion that targets the conditional mean, then evaluating it primarily with RMSE-type measures is coherent. This is one reason why likelihood-based ARIMA and ETS models are naturally associated with mean-oriented evaluation. By contrast, evaluating all methods only with MAE or MASE may inadvertently favour methods that are better at predicting medians, even when the competing models were not designed to do so.
+
+This does not mean that train and test losses must always be identical. In finite samples, robustness considerations can justify departures, and in some applications the eventual business loss is only approximately known. But such departures should be explicit. If the point forecast target is unknown, reporting several measures can be sensible, provided one measure is clearly designated as primary and the others are used as sensitivity analysis rather than as an undisciplined metric buffet. In other words, multiple measures are useful when they answer different questions, not when they are used in the hope that one will make the preferred method look good.
+
+# 2 Normalisation is choosing a benchmark
+
+Scale-dependent measures such as MAE and RMSE are perfectly meaningful when evaluating one series in its own units. In fact, this is often the cleanest situation because the results remain directly interpretable. Problems arise when we want to compare errors across series with different units or scales, or when we want to aggregate performance across many series. Then we need to normalise.
+
+Normalisation is often presented as a technical afterthought, but it is not. Any normalisation divides forecast errors by something, and that “something” acts as a benchmark. Once this is recognised, many apparent disagreements between measures become easier to understand.
+
+## 2.1 Why there is no universal denominator
+
+Suppose we want to compare two models across many series. A raw MAE of $10$ is large for a low-volume SKU and negligible for a national energy load series. So we divide by a scale term. The crucial question is what that scale term represents.
+
+If we divide by the actual value at each time point, we obtain percentage errors, with the problems discussed above. If we divide by the sum of absolute actuals over the test set, we obtain WAPE. If we divide by the mean absolute first difference in the training set, we obtain MASE [@Hyndman2006Another]. If we divide by the error of an explicit benchmark method, we obtain relative measures such as rMAE or rRMSE [@Davydenko2013Measuring]. These are not minor algebraic variants. They correspond to different notions of what a “large” error is.
+
+There is therefore no denominator that is automatically appropriate for every series. A good denominator for stationary intermittent demand can be a bad denominator for strongly trended macroeconomic or financial series. A denominator that works well for seasonal retail demand may be a poor choice for event-driven web traffic or for bounded physical processes such as wind power capacity factors. The right way to think about normalisation is not to ask which scaled measure is universally best, but which benchmark makes forecast errors meaningfully comparable for the data-generating features at hand.
+
+## 2.2 WAPE is interpretable because it uses a simple benchmark
+
+Weighted absolute percentage error,
 
 $$
-\text{Sample Variance} = \frac{1}{n-1}\sum_{t=1}^n\left((y_t-\hat{y}_t)-mean(y_t-\hat{y}_t)\right)^2
+\text{WAPE} = \frac{\sum_t |y_t-\hat{y}_t|}{\sum_t |y_t|},
 $$
 
-- If we assume the true population mean is zero (there is no bias):
+is often attractive to practitioners because it is easy to communicate. But its interpretability comes from a very particular choice of benchmark. As noted by Hyndman [@Hyndman2025WAPE], WAPE can be read as a relative MAE with a constant-zero forecast in the denominator. That benchmark is sensible only when a zero forecast is a meaningful baseline.
 
-$$
-\text{Error Std Dev} = \sqrt{\frac{1}{n}\sum_{t=1}^n\left(y_t-\hat{y}_t\right)^2}
-$$
+This explains both the strengths and the weaknesses of WAPE. For sparse intermittent series without pronounced trend, a zero baseline may be defensible, and WAPE can work reasonably well. This is one reason why it remains popular in inventory contexts [@Kolassa2007Advantages]. But the same logic also shows why WAPE is a poor universal default. When the series has trend, level changes, or strong seasonality, the denominator changes with the holdout sample in ways that have little to do with forecasting skill. A method can produce the same absolute errors on two different test windows and still appear better on the later window merely because the series level has drifted upward.
 
+The key point is not that WAPE is always wrong. The key point is that its denominator hard-codes a specific baseline, whether or not the user acknowledges it. If zero is not a serious benchmark, the measure is misaligned with the forecasting task.
 
+## 2.3 MASE and RMSSE make the benchmark explicit
 
+MASE and RMSSE are often stronger defaults for research comparison because they scale by in-sample performance of a naive benchmark rather than by the realised magnitude of the holdout. For a non-seasonal series, MASE uses the average absolute first difference in the training sample; for a seasonal series, a seasonal analogue can be used [@Hyndman2006Another]. RMSSE applies the same logic in squared-error form.
 
+These measures have two major advantages. First, they retain a clear connection to the forecast target: MASE is median-oriented and RMSSE is mean-oriented. Second, they are typically less distorted by trend in the holdout sample because the denominator is estimated from the training data rather than from the realised test values. This is the core reason why benchmark-based scaling is often preferable in academic comparisons and in large benchmark datasets, as also stressed in recent practitioner-oriented summaries of the state of the art.
+
+That said, benchmark-based scaling is not magic either. MASE is only as meaningful as the naive benchmark embodied in its denominator. If a simple naive method is structurally inappropriate for the series, then the scaled error inherits that weakness. For example, if the series follows a strong exponential trend, then a one-step naive benchmark may be much less informative than on a weakly dependent stationary series. The same principle applies more generally: scaled and relative measures should be designed around a benchmark that represents a credible fallback forecast.
+
+## 2.4 Trend, seasonality, intermittency, and boundedness require different defaults
+
+The main practical implication is that normalisation should start from the data characteristics.
+
+For one series in one operational setting, scale-dependent measures may be best because they remain interpretable in the original units. For collections of series with similar scale and direct business comparability, an aggregate scale-dependent measure may also be acceptable if high-volume series are intentionally meant to matter more.
+
+For stationary or approximately stationary collections where cross-series comparison is required, MASE or RMSSE are often defensible defaults. For intermittent demand, percentage-type measures are especially dangerous because zeros and small values dominate the denominator; WAPE may be acceptable in some stationary sparse settings, but MAE-type measures can also be problematic because they elicit the median, which is often zero. For trending or level-shifting series, any measure whose denominator depends directly on the magnitude of the test set should be treated with caution. For seasonal series, the benchmark should usually be seasonal as well.
+
+The deeper lesson is that scale-free evaluation is never a property of the numerator alone. It depends just as much on the benchmark in the denominator. Asking “how should I normalise?” is therefore equivalent to asking “relative to what baseline behaviour should this error be judged?”
+
+# 3 Aggregation across series is a value judgement
+
+Once an error has been computed per forecast, or per series, a final question remains: how should these quantities be summarised? This is the least discussed step and often the one with the largest practical consequences.
+
+Aggregation is not merely descriptive. It determines which failures count, which successes dominate, and which kinds of methods are favoured. In that sense it plays the same role as the decathlon point system: it defines what kind of all-round performance is rewarded.
+
+## 3.1 Equal weighting and value weighting answer different questions
+
+Suppose we evaluate a method on a large panel of series. If we compute a scale-free measure per series and then take a simple average or median, every series receives equal weight. This is appropriate when every series is regarded as one forecasting problem of equal scientific importance.
+
+If instead we compute an aggregate error over all observations first, as in a global WAPE or MAE, then high-volume series dominate. This is appropriate when business value is roughly proportional to scale: a one-unit error on a large-revenue series may indeed matter more than a one-unit error on a tiny series. In that case, the weighting is intentional, not a flaw.
+
+Neither approach is universally correct. They answer different questions. Scale-free per-series aggregation asks whether the method performs well across forecasting problems. Global aggregation in original units asks whether the method performs well where the volume is largest. In practice, many organisations want something between these extremes: not complete equality across series, but also not a metric in which one giant series overwhelms thousands of smaller yet still relevant ones.
+
+## 3.2 Competition leaderboards make these choices visible
+
+Recent benchmark datasets make the issue very concrete. In practitioner settings it is increasingly common to evaluate methods over large heterogeneous collections of series and then publish a single leaderboard score. But that single number is the output of several design decisions.
+
+Consider a leaderboard that computes MASE per series, then takes a median within each task, then normalises relative to a benchmark, and finally aggregates across tasks using a geometric mean. This design rewards methods that are broadly reliable and penalises those that fail badly on a subset of tasks. That may be exactly the intended objective. But it also means that the final ranking depends strongly on how tasks are defined and weighted. A single river-flow series represented at daily, weekly, and monthly frequencies can end up with more influence on the final ranking than a much larger collection of economically important series if each task receives equal weight. This is not an error in arithmetic. It is a value judgement embedded in the evaluation design.
+
+The lesson is the same as in the decathlon analogy from the introduction. Once we aggregate across heterogeneous tasks, we are no longer asking only “which method forecasts best?” We are asking “which method forecasts best under this specific weighting of failures, scales, and domains?” Leaderboards are useful, but their scoring rules should be interpreted as part of the benchmark, not as neutral facts.
+
+## 3.3 What should count more in practice?
+
+For practical forecast evaluation, the weighting scheme should be chosen deliberately and explained in business terms.
+
+If all series are equally important, use scale-free per-series measures and aggregate them with a mean or median. If larger series matter more because they drive revenue, inventory cost, or service levels, use explicit weights that reflect those stakes. If some strategic series are disproportionately important, assign those weights directly rather than hoping that an off-the-shelf metric will encode the priority by accident. And if robustness matters, report sensitivity to several aggregation choices.
+
+This is especially important when communicating results between technical and non-technical audiences. A scientist may prefer equal weighting because it is methodologically clean. A business stakeholder may prefer value weighting because it aligns with cost. Both positions are reasonable. Problems arise only when the weighting is implicit and the resulting single number is treated as if it carried an objective meaning independent of those priorities.
+
+## 3.4 Recommendations for summarising performance
+
+Three practical rules follow.
+
+First, separate the within-series error measure from the across-series aggregation step. They solve different problems and should not be conflated.
+
+Second, make the weighting scheme explicit. “Equal weight per series”, “equal weight per task”, and “weight proportional to revenue” are all defensible choices, but they describe different objectives.
+
+Third, avoid reporting only one grand average whenever the result could be driven by a few atypical tasks or by a hidden weighting effect. At minimum, a primary aggregate should be accompanied by a small amount of distributional information, such as a median together with a mean, or task-level summaries that make obvious where the method wins and where it fails.
+
+# Conclusion
+
+Point forecast evaluation is often made unnecessarily confusing because three different design choices are mixed together. The first is elicitation: which summary of the predictive distribution should the point forecast represent? The second is normalisation: relative to which benchmark should errors be judged? The third is aggregation: which series or tasks should carry more weight in the final summary?
+
+Once these questions are separated, many long-running debates become more tractable. RMSE and MAE are not rivals in search of one winner; they target different functionals. WAPE is not a universally interpretable percentage measure; it is a relative error built around a zero benchmark and therefore appropriate only in some settings. MASE and RMSSE are often strong defaults for comparative work because they make the benchmark explicit and are less sensitive to holdout scale, but they still depend on the relevance of the naive baseline. And any summary across many series is inevitably a statement about what matters more.
+
+Our recommendations are therefore straightforward. Start from the predictive distribution and the decision problem, not from a familiar metric. Avoid MAPE and do not treat sMAPE as a general repair. When normalisation is needed, choose a benchmark that is defensible for the data characteristics of the series. When aggregating across many series, state clearly whether the goal is equality across forecasting problems, weighting by business value, or something in between.
+
+The broader implication is that evaluation design is itself part of forecasting methodology. A leaderboard, a benchmark table, or a business KPI is only as meaningful as the choices that produced it. If forecasting is to improve in both academia and practice, those choices need to become explicit, technically defensible, and aligned with the decision context they are meant to serve.
