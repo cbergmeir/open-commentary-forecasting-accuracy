@@ -25,15 +25,14 @@ The rest of the paper is organised around these three questions. Section 1 argue
 
 # Forecasting is always probabilistic
 
-<!-- TODO: revise this -->
-Forecasting is fundamentally different from problems in which the target can in principle be predicted almost perfectly, such as for example many image classification tasks where there is virtually no noise, humans perform strongly and for many images would be able to achieve the signel correct result with certainty, and it is clear that an algorithm that is capable enough can achieve perfect accuracy with very low levels of uncertainty. 
+Forecasting differs fundamentally from tasks where near-perfect performance is achievable in principle, like many image or language processing tasks. For example, in many image classification tasks, most images have a clear correct label, humans achieve strong performance which gives us a good sense of what accuracies are achievable, and thus sufficiently capable algorithms can approach perfect accuracy with high confidence. 
 
-In contrast, in most forecasting settings there is irreducible uncertainty, and thus there is almost always a non-degenerate distribution for the future value. Whether this distribution is produced explicitly by a probabilistic model or only implicitly by a point forecasting workflow is secondary. Conceptually, the object of interest is the predictive distribution $Y_{t+h} \mid \mathcal{F}_t$, not a single number.
+Forecasting, by contrast, involves irreducible uncertainty about future outcomes, and thus there is almost always a non-degenerate distribution for the future value. Whether this distribution is produced explicitly by a probabilistic model or only implicitly by a point forecasting workflow is secondary. Conceptually, the object of interest is the predictive distribution $Y_{t+h} \mid \mathcal{F}_t$, not a single number.
 
 This point is well understood in the statistical forecasting literature [@gneiting2007strictly], but it is still easy to forget when working with leaderboards, forecasting competitions, or business dashboards. A model may output one number, yet that number is meaningful only as a particular summary of uncertainty. Classical state space models estimated by likelihood typically target a conditional mean; quantile methods target specific quantiles; intermittent-demand methods often need special care because the predictive distribution is highly asymmetric and concentrated near zero. Modern machine learning systems may or may not output an explicit distribution, but the same logic applies: the point forecast is only interpretable relative to the loss or scoring rule that defines it.
 
 <!-- TODO: revise this -->
-This is a central point in forecasting, and if we can achieve that all stakeholders understand it we have already gained a lot. For example we will then not be in a situation that stateholders are uncomfortable with flat line forecasts so that the forecasters add some random noise, if we understand that the forecast is a summary statistic that necessarily will have different properties than any particular realisation of draw from that statistic, where the future will be one of them.
+This is a central point in forecasting. If all stakeholders understand it, significant progress can follow. For instance, stakeholders will no longer be uncomfortable with flat-line forecasts, causing the forecasters to add noise to the forecasts which will slightly degrade accuracy but make some stakeholders accept the forecast. Understanding that a point forecast is a summary statistic that necessarily differs from any particular realisation drawn from that distribution of future values clarifies why the eventual outcome will always appear to diverge from the forecast. The future is just one draw from the predictive distribution, not the distribution itself.
 
 ## A point forecast is a summary statistic, not the future itself
 
@@ -67,35 +66,33 @@ where $L(a,y)$ is the loss incurred by predicting $a$ when the outcome is $y$. D
 - absolute error $L(a,y)=|a-y|$ elicits the median,
 - 0--1 loss elicits the mode.
 
-<!-- TODO: have the derivations of this in an appendix -->
+Short derivations are provided in the Appendix section ["Why Squared Error Elicits the Mean and Absolute Error Elicits the Median"](#app-elicitation).
 
 This immediately implies that the common point forecast measures are not interchangeable. Root mean squared error (RMSE) and mean absolute error (MAE) are not just two different ways of summarising the same notion of accuracy. They reward different forecast targets. If two models produce similar predictive distributions but one is better at estimating the mean while the other is better at estimating the median, RMSE and MAE may rank them differently without either ranking being wrong.
 
 This is one reason why the blanket question "should I use RMSE or MAE?" has no universal answer. If the business decision is approximately linear in the absolute deviation, MAE may be appropriate. If large misses are disproportionately costly and the forecast target is a mean, RMSE may be preferable. If the predictive distribution is symmetric, the distinction is often less consequential because mean and median coincide, which is why RMSE- and MAE-based comparisons can sometimes agree in simple stationary settings [@Hyndman2006Another; @Hewamalage2023Forecast]. But in skewed or intermittent settings the distinction can matter a great deal.
 
-<!-- TODO: Talk here about that maybe you don't know what you want. Or that squaring really has no special place if errors are not normally distributed. Or does that come later? -->
+Furthermore, in many real-world business settings the preferred loss is oftentimes at least partly unknown. Should outliers be penalised heavily, and if so, how heavily? RMSE has a particularly clean interpretation under Gaussian error assumptions, where squared loss arises naturally from maximum-likelihood arguments. But that is an assumption about the error distribution, not a universal property of the metric itself. If forecast errors are not approximately normal, then squared error has no special status by default. It is appropriate only when its penalty structure matches the decision problem. If one wanted to penalise large errors even more strongly, higher-order losses such as fourth powers could be considered as well. In these situations, the real question is often how robust a forecast is across different error measures and modelling assumptions. A method that is consistently preferable across a range of plausible measures is very different from one whose ranking changes sharply as soon as the evaluation criterion changes.
 
 ## You should not use MAPE and sMAPE unless for legacy comparisons
 
-It has now been long established in the forecasting literature that MAPE and sMAPE are problematic measures that should be retired. 
-<!-- TODO: cite some papers about that. Maybe armstrong etc. -->
+It has now been long established in the forecasting literature that MAPE and sMAPE are problematic measures that should be retired [@Hyndman2006Another; @Armstrong2006Findings; @Kolassa2007Advantages; @Goodwin2011High]. 
 The appeal of percentage errors is easy to understand. They seem scale-free and are easy to explain to non-specialists. That appeal, however, should not obscure their conceptual and statistical problems.
 
 Mean absolute percentage error (MAPE) is undefined when the actual value is zero, unstable when the actual value is small, asymmetric in undesirable ways, and not elicitable by a meaningful central functional in general [@Hyndman2006Another; @kolassa2020best], which means that if we optimise for MAPE we optimise for something we very likely do not want to optimise for. See Figure 
 <!-- TODO: Add a figure in here. -->
 . It does not simply target "the mean in percentage terms" or "the median in percentage terms". In practical terms, it tends to reward underforecasting in many settings and can produce deeply misleading results when small denominators occur.
 
-Symmetric MAPE (sMAPE) does not resolve the underlying problem. It fixes one notion of asymmetry by changing the denominator, but introduces others, remains problematic around zeros, and can assign extreme penalties in intermittent-demand settings precisely when many actual values are zero. 
-<!-- TODO: Cite papers that state this. -->
-Adding arbitrary constants or ad hoc lower bounds to these denominators may improve numerical stability
-<!-- TODO: Cite Suilin. -->
+Symmetric MAPE (sMAPE) does not resolve the underlying problem. It fixes one notion of asymmetry by changing the denominator, but introduces others, remains problematic around zeros, and can assign extreme penalties in intermittent-demand settings precisely when many actual values are zero [@Hyndman2006Another; @Kim2016new; @Kolassa2007Advantages]. 
+Adding arbitrary constants or ad hoc lower bounds to these denominators may improve numerical stability [@Suilin2017kaggle,@Smyl2025SparseProof]
+<!-- TODO: can look again at the papers in Foresight Issue 78. -->
 , but then one loses any clear understanding of what functional the measure is eliciting. Once the denominator is engineered by hand, the metric may remain computable while ceasing to have a clean decision-theoretic interpretation.
 
-For these reasons, many researchers have argued that MAPE should no longer be used as a default point forecast measure, and that sMAPE should not be treated as its clean fix. We support this argumentation. The continued use of these measures is best explained historically and institutionally, not statistically.
+One practical attraction of sMAPE, especially in some machine learning settings, is that it is bounded between 0 and 200 [@Smyl2025SparseProof]. However, boundedness can also be obtained in other ways that may be preferable, for example by applying a monotone bounded transform such as a logit transform to a better-grounded primary measure such as RMSE or MAE.
 
-<!-- TODO: Talk about advantage of sMAPE that it is bounded. But also say that we can come up with a bounded measure  that doesn't have these disadvantages. -->
+To summarise, many researchers have argued that MAPE should no longer be used as a default point forecast measure, and that sMAPE should not be treated as its clean fix. We support this argumentation. The continued use of these measures is best explained historically and institutionally, not statistically.
 
-We acknowledge that it is a justifiable use of, e.g., sMAPE to compare a new method with historic results of the M3 and M4 forecasting competitions in a fair way. As the original competition participants knew they were going to be judged by this metric, it is plausible that they optimised their forecasts towards this metric. 
+We acknowledge that it is a justifiable use of, e.g., sMAPE to compare a new method with historic results of the M3 and M4 forecasting competitions in a fair way. As the original competition participants knew they were going to be evaluated by this metric, it is plausible that they optimised their forecasts towards it. 
 
 This argument may also be valid in a business setting where we compare with a legacy system. However, we see that in practice this argument should be used with caution, as it is often an easy excuse for stakeholders to stick to business as usual and to outdated practices that clearly have been shown by research to be flawed.
 
@@ -103,19 +100,20 @@ This argument may also be valid in a business setting where we compare with a le
 ## The training loss and the evaluation measure should usually align
 
 The same logic extends from evaluation to model estimation. If a model is estimated under a criterion that targets the conditional mean, then evaluating it primarily with RMSE-type measures is coherent. This is one reason why likelihood-based ARIMA and ETS models are naturally associated with mean-oriented evaluation. By contrast, evaluating all methods only with MAE or MASE may inadvertently favour methods that are better at predicting medians, even when the competing models were not designed to do so.
-<!-- TODO: This needs to be extended towards ML algorithms that usually use L1 loss. -->
 
-This does not mean that train and test losses must always be identical. In finite samples, robustness considerations can justify departures, and in some applications the eventual business loss is only approximately known. But such departures should be explicit. If the point forecast target is unknown, reporting several measures can be sensible, provided one measure is clearly designated as primary and the others are used as sensitivity analysis rather than as an undisciplined metric buffet. In other words, multiple measures are useful when they answer different questions, not when they are used in the hope that one will make the preferred method look good.
+This alignment problem becomes especially important when comparing classical statistical models with modern machine learning models. Many machine learning forecasters are trained with L1, quantile (pinball), or Huber-type losses for robustness and optimization stability, whereas classical ARIMA and ETS models estimated by likelihood are typically mean-oriented and thus aligned with squared-error evaluation. In other words, these model classes are often trained toward different functionals of the predictive distribution. This makes one-number comparisons difficult: evaluating only with RMSE can disadvantage models trained toward medians or quantiles, while evaluating only with MAE can disadvantage mean-oriented models. As a minimum safeguard against this asymmetry, studies that compare such heterogeneous model families should report both RMSE and MAE (or closely related counterparts), and clearly state which one is primary for the decision context.
+
+At the same time, alignment does not require train and test losses to be identical. In finite samples, robustness considerations or uncertainty about the true business loss can justify deliberate departures. For example, when training data contain occasional extreme outliers (e.g., stockouts, promotions, or recording errors), estimating with Huber or L1 loss can stabilise model fitting even if the primary evaluation remains RMSE for a mean-oriented decision target. The key is transparency: state the primary measure, explain why it reflects the decision target, and use additional measures as sensitivity checks rather than as an undisciplined metric buffet.
 
 # Normalisation is choosing a benchmark
 
+<!-- TODO: While we argue here that there is no universal normalisatoin, we want to later propose to always use RMSSE, though it is not interpretable. And at least in academic settings. Anyway, I also want to highlight how prcticioner settings and academic setting differ. -->
 Scale-dependent measures such as MAE and RMSE are perfectly meaningful when evaluating one series in its own units. In fact, this is often the cleanest situation because the results remain directly interpretable. So, if you don't need a scale-free measure, stick to the scaled, non-normalised measures. 
 Problems arise when we want to compare errors across series with different units or scales, or when we want to aggregate performance across many series. Then we need to normalise. And already in a single series, of there are strong trend and level shifts, normalisation may be needed both during training and also for evaluation. A good example would be the bitcoin price that has changed its scale dramatically over the years. Other financial time series have similar properties.
 
-<!-- TODO: Say here that Machine learners often think of this as trivial, and that they just do z-score or some other mean normalisation. This will work perfectly fine for some series, and usually works for the series those papers deal with, however, in the end, they state that they have solved "forecasting". -->
-<!-- TODO: Say that in finance the series don't have a defined mean (?? how to say this properly) and that therefore in this area normlising by the marginal mean is not doing anything useful. -->
+In many machine learning forecasting papers, this step is treated as largely technical, with default preprocessing such as z-score standardisation or related mean-variance scaling applied uniformly across tasks [@zhou2021informer; @wu2021autoformer; @nie2023patchtst]. This can work well on many benchmark datasets, in particular the ones used as standard benchmarking suites by many papers from the machine learning community. But it should not be mistaken for a universally valid solution to normalisation in forecasting. In particular, for many financial and other near-unit-root series, the conditional mean is weakly predictable at best and often unstable over time, so the in-sample mean is not a meaningful long-run reference level. Normalising by that mean therefore does not provide a meaningful benchmark for forecast error comparison [@DeGooijer200625].
 
-Normalisation is often presented as a technical afterthought, but it is not. Any normalisation divides forecast errors by something, and that "something" acts as a benchmark. Once this is recognised, many apparent disagreements between measures become easier to understand.
+To summarise, normalisation is often presented as a technical afterthought, but it is not. Any normalisation divides forecast errors by something, and that "something" acts as a benchmark. Once this is recognised, many apparent disagreements between measures become easier to understand.
 
 ## Why there is no universal denominator
 
@@ -147,6 +145,9 @@ The key point is not that WAPE is always wrong. The key point is that its denomi
 MASE and RMSSE are often stronger defaults for research comparison because they scale by in-sample performance of a naive benchmark rather than by the realised magnitude of the holdout. For a non-seasonal series, MASE uses the average absolute first difference in the training sample; for a seasonal series, a seasonal analogue can be used [@Hyndman2006Another]. RMSSE applies the same logic in squared-error form.
 
 These measures have two major advantages. First, they retain a clear connection to the forecast target: MASE is median-oriented and RMSSE is mean-oriented. Second, they are typically less distorted by trend in the holdout sample because the denominator is estimated from the training data rather than from the realised test values. This is the core reason why benchmark-based scaling is often preferable in academic comparisons and in large benchmark datasets, as also stressed in recent practitioner-oriented summaries of the state of the art.
+<!-- TODO: this needs work. What are these practitioner-oriented summaries -->
+<!-- TODO: Talk about problems of RMSSE: that the training set may be different from teh test set. We have seen that in the M5: series that are constant zeros in teh training set suddenly take off in the test set and distort the evaluation. -->
+<!-- TODO: Also need to talk somewhere about the dimensions along which we average, and that the RMSSE is mostly appropriate if the test set can be too small.-->
 
 That said, benchmark-based scaling is not magic either. MASE is only as meaningful as the naive benchmark embodied in its denominator. If a simple naive method is structurally inappropriate for the series, then the scaled error inherits that weakness. For example, if the series follows a strong exponential trend, then a one-step naive benchmark may be much less informative than on a weakly dependent stationary series. The same principle applies more generally: scaled and relative measures should be designed around a benchmark that represents a credible fallback forecast.
 
@@ -180,6 +181,8 @@ Recent benchmark datasets make the issue very concrete. In practitioner settings
 
 Consider a leaderboard that computes MASE per series, then takes a median within each task, then normalises relative to a benchmark, and finally aggregates across tasks using a geometric mean. This design rewards methods that are broadly reliable and penalises those that fail badly on a subset of tasks. That may be exactly the intended objective. But it also means that the final ranking depends strongly on how tasks are defined and weighted. A single river-flow series represented at daily, weekly, and monthly frequencies can end up with more influence on the final ranking than a much larger collection of economically important series if each task receives equal weight. This is not an error in arithmetic. It is a value judgement embedded in the evaluation design.
 
+<!-- TODO: Rewrite, make it more explicitly about GIFT-Eval -->
+
 The lesson is the same as in the decathlon analogy from the introduction. Once we aggregate across heterogeneous tasks, we are no longer asking only “which method forecasts best?” We are asking “which method forecasts best under this specific weighting of failures, scales, and domains?” Leaderboards are useful, but their scoring rules should be interpreted as part of the benchmark, not as neutral facts.
 
 ## What should count more in practice?
@@ -209,3 +212,69 @@ Once these questions are separated, many long-running debates become more tracta
 Our recommendations are therefore straightforward. Start from the predictive distribution and the decision problem, not from a familiar metric. Avoid MAPE and do not treat sMAPE as a general repair. When normalisation is needed, choose a benchmark that is defensible for the data characteristics of the series. When aggregating across many series, state clearly whether the goal is equality across forecasting problems, weighting by business value, or something in between.
 
 The broader implication is that evaluation design is itself part of forecasting methodology. A leaderboard, a benchmark table, or a business KPI is only as meaningful as the choices that produced it. If forecasting is to improve in both academia and practice, those choices need to become explicit, technically defensible, and aligned with the decision context they are meant to serve.
+
+# Appendix
+
+<!-- TODO: Check this, is this correct? -->
+
+## Why Squared Error Elicits the Mean and Absolute Error Elicits the Median {#app-elicitation}
+
+Let $Y$ denote the predictive random variable for the target at a fixed horizon, and let $a \in \mathbb{R}$ be a candidate point forecast. Define the expected loss
+
+$$
+R(a) = \mathbb{E}[L(a,Y)].
+$$
+
+We seek $a^* \in \arg\min_a R(a)$.
+
+### Squared Error Implies the Mean
+
+For $L(a,y)=(a-y)^2$,
+
+$$
+R(a)=\mathbb{E}[(a-Y)^2]=a^2-2a\mathbb{E}[Y]+\mathbb{E}[Y^2].
+$$
+
+Assuming $\mathbb{E}[Y^2]<\infty$, differentiate with respect to $a$:
+
+$$
+R'(a)=2a-2\mathbb{E}[Y].
+$$
+
+Setting $R'(a)=0$ gives
+
+$$
+a^*=\mathbb{E}[Y].
+$$
+
+Since $R''(a)=2>0$, this is the unique global minimiser. Therefore, squared-error-optimal point forecasts are conditional means.
+
+### Absolute Error Implies the Median
+
+For $L(a,y)=|a-y|$,
+
+$$
+R(a)=\mathbb{E}[|Y-a|].
+$$
+
+Write $F(a)=\mathbb{P}(Y\le a)$ for the predictive CDF. A standard subgradient of $R$ is
+
+$$
+\partial R(a)=\big[\,\mathbb{P}(Y<a)-\mathbb{P}(Y>a),\;\mathbb{P}(Y\le a)-\mathbb{P}(Y\ge a)\,\big].
+$$
+
+A necessary and sufficient optimality condition for convex $R$ is $0\in\partial R(a)$, i.e.
+
+$$
+\mathbb{P}(Y\le a)\ge \tfrac12 \quad\text{and}\quad \mathbb{P}(Y\ge a)\ge \tfrac12.
+$$
+
+These are exactly the defining inequalities of a median. Equivalently, if $F$ is continuous and strictly increasing at the optimum, the first-order condition becomes
+
+$$
+F(a^*)=\tfrac12.
+$$
+
+Hence, absolute-error-optimal point forecasts are medians (not necessarily unique when $Y$ has atoms).
+
+# References
