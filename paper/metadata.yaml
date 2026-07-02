@@ -5,3 +5,5 @@ bibliography: paper/references.bib
 # csl: nature.csl
 link-citations: true
 numbersections: true
+header-includes:
+  - '\usepackage{graphicx}'

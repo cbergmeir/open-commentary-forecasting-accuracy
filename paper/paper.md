@@ -31,7 +31,6 @@ Forecasting, by contrast, involves irreducible uncertainty about future outcomes
 
 This point is well understood in the statistical forecasting literature [@gneiting2007strictly], but it is still easy to forget when working with leaderboards, forecasting competitions, or business dashboards. A model may output one number, yet that number is meaningful only as a particular summary of uncertainty. Classical state space models estimated by likelihood typically target a conditional mean; quantile methods target specific quantiles; intermittent-demand methods often need special care because the predictive distribution is highly asymmetric and concentrated near zero. Modern machine learning systems may or may not output an explicit distribution, but the same logic applies: the point forecast is only interpretable relative to the loss or scoring rule that defines it.
 
-<!-- TODO: revise this -->
 This is a central point in forecasting. If all stakeholders understand it, significant progress can follow. For instance, stakeholders will no longer be uncomfortable with flat-line forecasts, causing the forecasters to add noise to the forecasts which will slightly degrade accuracy but make some stakeholders accept the forecast. Understanding that a point forecast is a summary statistic that necessarily differs from any particular realisation drawn from that distribution of future values clarifies why the eventual outcome will always appear to diverge from the forecast. The future is just one draw from the predictive distribution, not the distribution itself.
 
 ## A point forecast is a summary statistic, not the future itself
@@ -79,13 +78,11 @@ Furthermore, in many real-world business settings the preferred loss is oftentim
 It has now been long established in the forecasting literature that MAPE and sMAPE are problematic measures that should be retired [@Hyndman2006Another; @Armstrong2006Findings; @Kolassa2007Advantages; @Goodwin2011High]. 
 The appeal of percentage errors is easy to understand. They seem scale-free and are easy to explain to non-specialists. That appeal, however, should not obscure their conceptual and statistical problems.
 
-Mean absolute percentage error (MAPE) is undefined when the actual value is zero, unstable when the actual value is small, asymmetric in undesirable ways, and not elicitable by a meaningful central functional in general [@Hyndman2006Another; @kolassa2020best], which means that if we optimise for MAPE we optimise for something we very likely do not want to optimise for. See Figure 
-<!-- TODO: Add a figure in here. -->
-. It does not simply target "the mean in percentage terms" or "the median in percentage terms". In practical terms, it tends to reward underforecasting in many settings and can produce deeply misleading results when small denominators occur.
+Mean absolute percentage error (MAPE) is undefined when the actual value is zero, unstable when the actual value is small, asymmetric in undesirable ways, and not elicitable by a meaningful central functional in general [@Hyndman2006Another; @kolassa2020best], which means that if we optimise for MAPE we optimise for something we very likely do not want to optimise for. It does not simply target "the mean in percentage terms" or "the median in percentage terms". In practical terms, it tends to reward underforecasting in many settings and can produce deeply misleading results when small denominators occur. See @kolassa2020best for an illustrative example where MAPE is minimised by a forecast that is heavily underpredicting and most likely not what a practitiner would like to achieve.
 
 Symmetric MAPE (sMAPE) does not resolve the underlying problem. It fixes one notion of asymmetry by changing the denominator, but introduces others, remains problematic around zeros, and can assign extreme penalties in intermittent-demand settings precisely when many actual values are zero [@Hyndman2006Another; @Kim2016new; @Kolassa2007Advantages]. 
 Adding arbitrary constants or ad hoc lower bounds to these denominators may improve numerical stability [@Suilin2017kaggle,@Smyl2025SparseProof]
-<!-- TODO: can look again at the papers in Foresight Issue 78. -->
+<!-- TODO: can look again at the papers in Foresight Issue 78. And at S. Kolassa's post on Stackoverflow.-->
 , but then one loses any clear understanding of what functional the measure is eliciting. Once the denominator is engineered by hand, the metric may remain computable while ceasing to have a clean decision-theoretic interpretation.
 
 One practical attraction of sMAPE, especially in some machine learning settings, is that it is bounded between 0 and 200 [@Smyl2025SparseProof]. However, boundedness can also be obtained in other ways that may be preferable, for example by applying a monotone bounded transform such as a logit transform to a better-grounded primary measure such as RMSE or MAE.
@@ -107,7 +104,8 @@ At the same time, alignment does not require train and test losses to be identic
 
 # Normalisation is choosing a benchmark
 
-<!-- TODO: While we argue here that there is no universal normalisatoin, we want to later propose to always use RMSSE, though it is not interpretable. And at least in academic settings. Anyway, I also want to highlight how prcticioner settings and academic setting differ. -->
+<!-- TODO: While we argue here that there is no universal normalisation, we want to later propose to always use RMSSE, though it is not interpretable. And at least in academic settings. Anyway, I also want to highlight how practicioner settings and academic settings differ. -->
+
 Scale-dependent measures such as MAE and RMSE are perfectly meaningful when evaluating one series in its own units. In fact, this is often the cleanest situation because the results remain directly interpretable. So, if you don't need a scale-free measure, stick to the scaled, non-normalised measures. 
 Problems arise when we want to compare errors across series with different units or scales, or when we want to aggregate performance across many series. Then we need to normalise. And already in a single series, of there are strong trend and level shifts, normalisation may be needed both during training and also for evaluation. A good example would be the bitcoin price that has changed its scale dramatically over the years. Other financial time series have similar properties.
 
@@ -133,8 +131,14 @@ $$
 
 is often attractive to practitioners because it is easy to communicate. But its interpretability comes from a very particular choice of benchmark. As noted by Hyndman [@Hyndman2025WAPE], WAPE can be read as a relative MAE with a constant-zero forecast in the denominator. That benchmark is sensible only when a zero forecast is a meaningful baseline.
 
-This explains both the strengths and the weaknesses of WAPE. For sparse intermittent series without pronounced trend, a zero baseline may be defensible, and WAPE can work reasonably well. This is one reason why it remains popular in inventory contexts [@Kolassa2007Advantages]. But the same logic also shows why WAPE is a poor universal default. When the series has trend, level changes, or strong seasonality, the denominator changes with the holdout sample in ways that have little to do with forecasting skill. A method can produce the same absolute errors on two different test windows and still appear better on the later window merely because the series level has drifted upward.
-<!-- TODO: make an image for this, to drive the point home. -->
+This explains both the strengths and the weaknesses of WAPE. For sparse intermittent series without pronounced trend, a zero baseline may be defensible, and WAPE can work reasonably well. This is one reason why it remains popular in inventory contexts [@Kolassa2007Advantages]. But the same logic also shows why WAPE is a poor universal default. When the series has trend, level changes, or strong seasonality, the denominator changes with the holdout sample in ways that have little to do with forecasting skill. A method can produce the same absolute errors on two different test windows and still appear better on the later window merely because the series level has drifted upward (Figure \ref{fig:wape-shortcomings}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{paper/images/wape_shortcomings.pdf}
+\caption{A strongly trended series (top) with a forecast that produces similar MAE and RMSE in an early low-level stretch (red) and a late high-level stretch (blue). The bar chart (bottom) shows that while MAE and RMSE are similar, WAPE more than doubles in the early stretch solely because the denominator (the sum of actuals) is much smaller there.}
+\label{fig:wape-shortcomings}
+\end{figure}
 
 The key point is not that WAPE is always wrong. The key point is that its denominator hard-codes a specific baseline, whether or not the user acknowledges it. If zero is not a serious benchmark, the measure is misaligned with the forecasting task.
 
