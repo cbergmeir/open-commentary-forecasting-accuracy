@@ -142,8 +142,6 @@ This explains both the strengths and the weaknesses of WAPE. For sparse intermit
 
 The key point is not that WAPE is always wrong. The key point is that its denominator hard-codes a specific baseline, whether or not the user acknowledges it. If zero is not a serious benchmark, the measure is misaligned with the forecasting task.
 
-<!-- TODO: have an appendix where I define all of these error measures. -->
-
 ## MASE and RMSSE make the benchmark explicit
 
 MASE and RMSSE are often stronger defaults for research comparison because they scale by in-sample performance of a naive benchmark rather than by the realised magnitude of the holdout. For a non-seasonal series, MASE uses the average absolute first difference in the training sample; for a seasonal series, a seasonal analogue can be used [@Hyndman2006Another]. RMSSE applies the same logic in squared-error form.
@@ -220,6 +218,84 @@ The broader implication is that evaluation design is itself part of forecasting 
 # Appendix
 
 <!-- TODO: Check this, is this correct? -->
+
+## Definitions of Error Measures Used in This Paper {#app-measures}
+
+We use the following notation. Let $y_t$ be the observed value, $\hat y_t$ the point forecast, and $e_t=y_t-\hat y_t$ the forecast error on test observations $t=1,\dots,n$. Let a benchmark forecast be $\hat y_t^{(b)}$ with benchmark error $e_t^{(b)}=y_t-\hat y_t^{(b)}$. Let the training sample have size $T$.
+
+### Scale-dependent measures
+
+Mean squared error (MSE):
+
+$$
+\mathrm{MSE}=\frac{1}{n}\sum_{t=1}^n e_t^2.
+$$
+
+Root mean squared error (RMSE):
+
+$$
+\mathrm{RMSE}=\sqrt{\frac{1}{n}\sum_{t=1}^n e_t^2}.
+$$
+
+Mean absolute error (MAE):
+
+$$
+\mathrm{MAE}=\frac{1}{n}\sum_{t=1}^n |e_t|.
+$$
+
+### Percentage and ratio-based measures
+
+Mean absolute percentage error (MAPE), defined only when all $y_t\neq 0$:
+
+$$
+\mathrm{MAPE}=\frac{100}{n}\sum_{t=1}^n \left|\frac{e_t}{y_t}\right|.
+$$
+
+Symmetric MAPE (sMAPE), common form on a $0$--$200$ scale:
+
+$$
+\mathrm{sMAPE}=\frac{200}{n}\sum_{t=1}^n \frac{|e_t|}{|y_t|+|\hat y_t|}.
+$$
+
+Weighted absolute percentage error (WAPE):
+
+$$
+\mathrm{WAPE}=\frac{\sum_{t=1}^n |e_t|}{\sum_{t=1}^n |y_t|}.
+$$
+
+### Scaled measures using training-data benchmarks
+
+Mean absolute scaled error (MASE), non-seasonal form:
+
+$$
+\mathrm{MASE}=\frac{\frac{1}{n}\sum_{t=1}^n |e_t|}{\frac{1}{T-1}\sum_{t=2}^T |y_t-y_{t-1}|}.
+$$
+
+Root mean squared scaled error (RMSSE), non-seasonal form:
+
+$$
+\mathrm{RMSSE}=\sqrt{\frac{\frac{1}{n}\sum_{t=1}^n e_t^2}{\frac{1}{T-1}\sum_{t=2}^T (y_t-y_{t-1})^2}}.
+$$
+
+For seasonal period $m$, the usual seasonal variants replace first differences by seasonal differences, i.e., $y_t-y_{t-m}$, and use $t=m+1,\dots,T$ in the denominator.
+
+### Relative measures against an explicit benchmark
+
+Relative MAE:
+
+$$
+\mathrm{rMAE}=\frac{\mathrm{MAE}(\hat y)}{\mathrm{MAE}(\hat y^{(b)})}=
+\frac{\frac{1}{n}\sum_{t=1}^n |e_t|}{\frac{1}{n}\sum_{t=1}^n |e_t^{(b)}|}.
+$$
+
+Relative RMSE:
+
+$$
+\mathrm{rRMSE}=\frac{\mathrm{RMSE}(\hat y)}{\mathrm{RMSE}(\hat y^{(b)})}=
+\frac{\sqrt{\frac{1}{n}\sum_{t=1}^n e_t^2}}{\sqrt{\frac{1}{n}\sum_{t=1}^n (e_t^{(b)})^2}}.
+$$
+
+Interpretation: values below $1$ indicate improvement over the benchmark, and values above $1$ indicate deterioration.
 
 ## Why Squared Error Elicits the Mean and Absolute Error Elicits the Median {#app-elicitation}
 
