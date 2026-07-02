@@ -153,6 +153,8 @@ These measures have two major advantages. First, they retain a clear connection 
 
 That said, benchmark-based scaling is not magic either. MASE is only as meaningful as the naive benchmark embodied in its denominator. If a simple naive method is structurally inappropriate for the series, then the scaled error inherits that weakness. For example, if the series follows a strong exponential trend, then a one-step naive benchmark may be much less informative than on a weakly dependent stationary series. The same principle applies more generally: scaled and relative measures should be designed around a benchmark that represents a credible fallback forecast.
 
+<!-- TODO: one point I want to make in the paper that is currently not very clear: I want to propose that in academic setting and in practitioner settings we need to use different ways of evaluating. For academics, we want to have generalizable methods that work well in many different situations. Here, MASE and RMSSE are the preferred measures. Even more RMSSE over MASE. They are not interpretable but they achieve quite well this generic comparison. On the other hand, in practitioner settings, they may NOT be what you want. And we should state some reasons for it. That is one of the main things I want people to take away from the paper. -->
+
 ## Trend, seasonality, intermittency, and boundedness require different defaults
 
 The main practical implication is that normalisation should start from the data characteristics.
@@ -165,6 +167,7 @@ The deeper lesson is that scale-free evaluation is never a property of the numer
 
 # Aggregation across series is a value judgement
 
+<!--TODO: Talk about the 3 dimensions?? Have a picture about it? -->
 Once an error has been computed per forecast, or per series, a final question remains: how should these quantities be summarised? This is the least discussed step and often the one with the largest practical consequences.
 
 Aggregation is not merely descriptive. It determines which failures count, which successes dominate, and which kinds of methods are favoured. In that sense it plays the same role as the decathlon point system: it defines what kind of all-round performance is rewarded.
@@ -179,13 +182,23 @@ Neither approach is universally correct. They answer different questions. Scale-
 
 ## Competition leaderboards make these choices visible
 
-Recent benchmark datasets make the issue very concrete. In practitioner settings it is increasingly common to evaluate methods over large heterogeneous collections of series and then publish a single leaderboard score. But that single number is the output of several design decisions.
+Recent benchmark datasets make the issue very concrete. In academic benchmark settings, it is now common to evaluate methods over large heterogeneous collections of series and then publish a single leaderboard score. But that single number is the output of several design decisions.
 
-Consider a leaderboard that computes MASE per series, then takes a median within each task, then normalises relative to a benchmark, and finally aggregates across tasks using a geometric mean. This design rewards methods that are broadly reliable and penalises those that fail badly on a subset of tasks. That may be exactly the intended objective. But it also means that the final ranking depends strongly on how tasks are defined and weighted. A single river-flow series represented at daily, weekly, and monthly frequencies can end up with more influence on the final ranking than a much larger collection of economically important series if each task receives equal weight. This is not an error in arithmetic. It is a value judgement embedded in the evaluation design.
+<!-- TODO: Say that these are from the ML community? 
+How do they compare with earlier such attempts, e.g. the M4? 
+Check the citations.-->
+Two prominent examples are GIFT-Eval [@aksu2024gifteval] and fev-bench [@shchur2025fevbench], both designed as broad academic benchmarks for comparing methods across many heterogeneous forecasting tasks. GIFT-Eval is a concrete example for how a single leaderboard number is constructed. Its public leaderboard first computes MASE at the series level, then takes the median MASE within each task (dataset-frequency split), then normalises each task score by the corresponding score of a seasonal naive baseline, and finally aggregates the normalised task scores using a geometric mean across tasks. In compact form, if $M_j$ is the median MASE for task $j$ and $M^{(snaive)}_j$ is the seasonal-naive counterpart, the overall score is
 
-<!-- TODO: Rewrite, make it more explicitly about GIFT-Eval -->
+$$
+\left(\prod_{j=1}^{J} \frac{M_j}{M^{(snaive)}_j}\right)^{1/J}.
+$$
 
-The lesson is the same as in the decathlon analogy from the introduction. Once we aggregate across heterogeneous tasks, we are no longer asking only “which method forecasts best?” We are asking “which method forecasts best under this specific weighting of failures, scales, and domains?” Leaderboards are useful, but their scoring rules should be interpreted as part of the benchmark, not as neutral facts.
+This design rewards methods that are broadly reliable and penalises those that fail badly on a subset of tasks. That may be exactly the intended objective. But it also means that the final ranking depends strongly on how tasks are defined and weighted. 
+
+<!-- TODO: The following is not just an example, it is actually what is happening in GIFT-Eval -->
+A single river-flow series represented at daily, weekly, and monthly frequencies can end up with more influence on the final ranking than a much larger collection of economically important series if each task receives equal weight. This is not an error in arithmetic. It is a value judgement embedded in the evaluation design.
+
+The lesson is the same as in the decathlon analogy from the introduction. Once we aggregate across heterogeneous tasks, we are no longer asking only "which method forecasts best?" We are asking "which method forecasts best under this specific weighting of failures, scales, and domains?" Leaderboards are useful, but their scoring rules should be interpreted as part of the benchmark, not as neutral facts.
 
 ## What should count more in practice?
 
@@ -201,7 +214,7 @@ Three practical rules follow.
 
 First, separate the within-series error measure from the across-series aggregation step. They solve different problems and should not be conflated.
 
-Second, make the weighting scheme explicit. “Equal weight per series”, “equal weight per task”, and “weight proportional to revenue” are all defensible choices, but they describe different objectives.
+Second, make the weighting scheme explicit. "Equal weight per series", "equal weight per task", and "weight proportional to revenue" are all defensible choices, but they describe different objectives.
 
 Third, avoid reporting only one grand average whenever the result could be driven by a few atypical tasks or by a hidden weighting effect. At minimum, a primary aggregate should be accompanied by a small amount of distributional information, such as a median together with a mean, or task-level summaries that make obvious where the method wins and where it fails.
 
@@ -217,7 +230,7 @@ The broader implication is that evaluation design is itself part of forecasting 
 
 # Appendix
 
-<!-- TODO: Check this, is this correct? -->
+<!-- TODO: Check the appendix, especially Section2, if it is correct. -->
 
 ## Definitions of Error Measures Used in This Paper {#app-measures}
 
