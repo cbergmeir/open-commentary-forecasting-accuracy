@@ -132,6 +132,8 @@ If we divide by the actual value at each time point, we obtain percentage errors
 
 There is therefore no denominator that is appropriate for every series. A good denominator for stationary intermittent demand can be a bad denominator for strongly trended macroeconomic or financial series. A denominator that works well for seasonal retail demand may be a poor choice for event-driven web traffic or for bounded physical processes such as wind power capacity factors. The right way to think about normalisation is not to ask which scaled measure is universally best, but which benchmark makes forecast errors meaningfully comparable for the data-generating features at hand.
 
+Thus, scale-free evaluation is never a property of the numerator alone. It depends just as much on the benchmark in the denominator. Asking "how should I normalise?" is therefore equivalent to asking "relative to what baseline behaviour should this error be judged?"
+
 ## An example: WAPE is interpretable because it uses a simple benchmark
 
 Weighted absolute percentage error,
@@ -153,56 +155,52 @@ This explains both the strengths and the weaknesses of WAPE. For sparse intermit
 
 The key point is not that WAPE is always wrong. The key point is that its denominator hard-codes a specific baseline, whether or not the user acknowledges it. If zero is not a serious benchmark, the measure is misaligned with the forecasting task.
 
+
+
 ## MASE and RMSSE make the benchmark explicit
 
+MASE and RMSSE scale by in-sample performance of a naive benchmark rather than, e.g., by the realised magnitude of the holdout. Thus, for a non-seasonal series, MASE uses the average absolute first difference in the training sample; for a seasonal series, a seasonal analogue can be used [@Hyndman2006Another]. RMSSE applies the same logic in squared-error form.
+
+The main idea of these measures is that the first (seasonal) difference of the series, which the error of a naive forecast effectively is, is much more likely to be stationary than the series itself, so that MASE and RMSSE can deal with many common non-stationary situations and are therewith more generally usable than other measures. Furthermore, by averaging over the training set instead of the test set, situations where the test set is too small are mitigated (also see Section TODO:4).
+
+However, as any other error measure, they also have drawbacks. At first glance they seem interpretable: larger than one means the method in question is worse than a naive forecast over the training set, so we would expect MASE to be between 0 and 1 for useful methods. However, in practice we usually predict output windows with different horizons that do not coincede with the horizon of the in-sample naive, and MASE and RMSSE values larger than one are therefore common and do not mean that a method has bad performance.
 
 
-MASE and RMSSE solve some of the main problems other measures have. As such they are more generally usable than other measures, and we recommend their use especially for academic settings. 
-
-Their main idea is that they use naive or seasonal naive as benchmark which are usually good enough to address non-stationarity in the data. The second point is they do this over the training set, which may be necessary for small test sets, as seen in Section 3. 
-
-They have some drawbacks: They are in practice usually not interpretable. If training and test set are very different that's are problem. If naive is not a good benchmark that's a problem.
-
-
-MASE and RMSSE are better options, especially for research settings, because they scale by in-sample performance of a naive benchmark rather than by the realised magnitude of the holdout. For a non-seasonal series, MASE uses the average absolute first difference in the training sample; for a seasonal series, a seasonal analogue can be used [@Hyndman2006Another]. RMSSE applies the same logic in squared-error form.
-
-<!-- TODO: The second point here doesn't make much sense. It is because the training set is larger, not because there can be trend in the test set. -->
-These measures have two advantages. First, they retain a clear connection to the forecast target: MASE is median-oriented and RMSSE is mean-oriented. Second, they are typically less distorted by trend in the holdout sample because the denominator is estimated from the training data rather than from the realised test values. This is the core reason why benchmark-based scaling is often preferable in academic comparisons and in large benchmark datasets.
-
-That said, benchmark-based scaling is not magic. MASE is only as meaningful as the naive benchmark in its denominator. If that benchmark is structurally inappropriate for a series, the scaled error inherits the same weakness. For example, when a series has a strong predictable trend, a one-step naive benchmark can be much less informative than in a weakly dependent stationary setting. A related issue appeared in the M5 forecasting competition: some product-level series had zero values for most of the training period and then rose sharply in the test period. Because naive forecasts look very strong on long zero stretches, methods are then penalised heavily for missing the subsequent regime change under MASE and RMSSE, which then gives such series disproportionate influence in the aggregated error.
+They are in practice usually not interpretable. If training and test set are very different that's are problem. If naive is not a good benchmark that's a problem. Also, again, the measures are only as meaningful as the naive benchmark in their denominator. If that benchmark is structurally inappropriate for a series, the scaled error inherits the same weakness. For example, when a series has a strong predictable trend, a one-step naive benchmark can be much less informative than in a weakly dependent stationary setting. A related issue appeared in the M5 forecasting competition: some product-level series had zero values for most of the training period and then rose sharply in the test period. Because naive forecasts look very strong on long zero stretches, methods are then penalised heavily for missing the subsequent regime change under MASE and RMSSE, which then gives such series disproportionate influence in the aggregated error.
 
 <!-- TODO: This argument should be strengthened. Hopefully get some input from Rob and Ivan. -->
-The choice between MASE and RMSSE is, in essence, the same as the choice between MAE and RMSE: do we want to target the median of the predictive distribution, or the mean (the expectation)? MASE was originally introduced with absolute errors partly to remain close to MAPE, making it easier for practitioners to transition away from percentage errors. In practice, however, users willing to move beyond MAPE are often also comfortable with squared-error measures. We therefore argue that RMSSE should be the default for broad comparative evaluation (as in the M5 competition), while MASE should be used when there is a clear reason to prefer absolute-error behaviour, for example when one wants reduced sensitivity to large outliers.
+Finally, a question is whether MASE or RMSSE should be used. This choice is, in essence, the same as the choice between MAE and RMSE: do we want to target the median of the predictive distribution, or the mean (the expectation)? MASE was originally introduced with absolute errors partly to remain close to MAPE, making it easier for practitioners to transition away from percentage errors. In practice, however, users willing to move beyond MAPE are often also comfortable with squared-error measures. We therefore argue that RMSSE should be the default for broad comparative evaluation (as in the M5 competition), while MASE should be used when there is a clear reason to prefer absolute-error behaviour, for example when one wants reduced sensitivity to large outliers.
 
-The same principle applies more generally: scaled and relative measures should be designed around a benchmark that represents a credible fallback forecast.
+In sum, in situations where interpretability is not needed and the main aim is to compare several methods across different forecasting problem, which is the typical setup for example in academic research, RMSSE should be used as the default measure. If other measures are used, there should be reasons clearly stated why this is needed.
 
+<!-- ## Trend, seasonality, intermittency, and boundedness require different defaults
 
-## Trend, seasonality, intermittency, and boundedness require different defaults
-
-The main practical implication is that normalisation should start from the data characteristics.
+Thus, while dividing by in-sample (seasonal) naive as in MASE and RMSSE is a reasonable default, normalisation should ideally start from the data characteristics.
 
 For one series in one operational setting, scale-dependent measures may be best because they remain interpretable in the original units. For collections of series with similar scale and direct business comparability, an aggregate scale-dependent measure may also be acceptable if high-volume series are intentionally meant to matter more.
 
 Where cross-series comparison is required, RMSSE is often the strongest primary default, with MASE as a complementary sensitivity check. For intermittent demand, percentage-type measures are especially dangerous because zeros and small values dominate the denominator; WAPE may be acceptable in some stationary sparse settings, but MAE-type measures can also be problematic because they elicit the median, which is often zero. For trending or level-shifting series, any measure whose denominator depends directly on the magnitude of the test set should be treated with caution. For seasonal series, the benchmark should usually be seasonal as well.
 
-The deeper lesson is that scale-free evaluation is never a property of the numerator alone. It depends just as much on the benchmark in the denominator. Asking "how should I normalise?" is therefore equivalent to asking "relative to what baseline behaviour should this error be judged?"
+ -->
 
 # Aggregation across series is a value judgement
 
-Once an error has been computed per forecast, or per series, a final question remains: how should these quantities be summarised? This is the least discussed step and often the one with the largest practical consequences.
+<!-- TODO: Need to polish this section -->
 
-Aggregation is not merely descriptive. It determines which failures count, which successes dominate, and which kinds of methods are favoured. In that sense it plays the same role as the decathlon point system: it defines what kind of all-round performance is rewarded.
+Once an error has been computed per forecast, or per series, a final question remains: how should these quantities be summarised? 
 
-<!--TODO: Talk about the 3 dimensions?? Have a picture about it? I had a picture in my slides, I think. -->
-<!-- TODO: Also need to talk somewhere about the dimensions along which we average, and that the RMSSE is mostly appropriate if the test set can be too small.-->
+In forecasting, there are usually 3 dimensions along which we average the errors from the test set: the horizon, the origins, and the series.  See Figure \ref{fig:3d_of_eval} for an illustration. It is important to note that any or all of these dimensions can collapse. For example, the horizon can be 1, we can use a fixed (single) forecast origin and we can forecast only a single time series. This is the main reason why RMSSE and MASE use a quantity derived from the training set to scale. However, if we are in a situation where the dimensions (mainly horizon and origins) have a large enough amount of data, deriving the quantity over the test set instead of the training set, and therewith effectively using rMAE and rRMSE with a (seasonal) naive as the benchmark method is preferrable. 
 
-In forecasting, there are usually 3 dimensions along which we average: the horizon, origins, and series. 
+Another important issue is that we should aggregate only over comparable quantities. Thus, if the series are not on the same scale, we need to compute a scale-free measure like RMSSE per series and then in a second step average over all series. But already within a single series scale can change dramatically (for example the bitcoin price). If this is the situation in our data, we may even want to evaluate different regimes of a single time series separately.
 
-1) The horizon
+TODO: Here we always have a trade-off between that on the one hand we want to aggregate for stability, and on the other hand we want to scale everything with the right scalar to make things comparable. For example, MAPE first divides then aggregates, but this leads to all the problems outlined earlier. This why it is preferrable to first aggregate then divide. But we need to make sure that what we aggregate is on the same scale.
 
-<!-- TODO: I'm sure I have some slides about this. -->
 
-(Figure \ref{fig:3d_of_eval}).
+1) Regarding the horizon: It is common to produce an output window, for example, for an hourly time series we could produce forecasts for the next 24 hours, so we produce 24 forecasts. It is common nowadays to report average error measures over these 24 forecasts, even though they have different statistical properties, as uncertainty of the forecasts usually varies with the horizon, both seasonally and increasingly. For example, there could be more uncertainty during the day than during the night, and a forecast 2 weeks out will have more uncertainty than a forecast one day out. It used to be common to report error measures separately for differen horizons (see e.g. TODO: The original M3 paper??)
+
+2) Origin: In forecasting competitions where the test set is entirely withheld, fixed-origin evaluation is the norm. However, in real-world scenarios, we want to implement a rolling-origin scheme. Need to watch out for data leakage in then. 
+
+3) Series: 
 
 \begin{figure}[htbp]
 \centering
@@ -210,6 +208,10 @@ In forecasting, there are usually 3 dimensions along which we average: the horiz
 \caption{TODO}
 \label{fig:3d_of_eval}
 \end{figure}
+
+
+Aggregation is not merely descriptive. It determines which failures count, which successes dominate, and which kinds of methods are favoured. In that sense it plays the same role as the decathlon point system: it defines what kind of all-round performance is rewarded.
+
 
 ## Equal weighting and value weighting answer different questions
 
@@ -226,6 +228,7 @@ Recent benchmark datasets make the issue very concrete. In academic benchmark se
 <!-- TODO: Say that these are from the ML community? 
 How do they compare with earlier such attempts, e.g. the M4? 
 Check the citations.-->
+<!-- TODO: check what fev-bench does here. They have an ELO score and I think some win rate or so? -->
 Two prominent examples are GIFT-Eval [@aksu2024gifteval] and fev-bench [@shchur2025fevbench], both designed as broad academic benchmarks for comparing methods across many heterogeneous forecasting tasks. GIFT-Eval is a concrete example for how a single leaderboard number is constructed. Its public leaderboard first computes MASE at the series level, then takes the median MASE within each task (dataset-frequency split), then normalises each task score by the corresponding score of a seasonal naive baseline, and finally aggregates the normalised task scores using a geometric mean across tasks. In compact form, if $M_j$ is the median MASE for task $j$ and $M^{(snaive)}_j$ is the seasonal-naive counterpart, the overall score is
 
 $$
@@ -261,11 +264,14 @@ Third, avoid reporting only one grand average whenever the result could be drive
 
 Point forecast evaluation is often made unnecessarily confusing because three different design choices are mixed together. The first is elicitation: which summary of the predictive distribution should the point forecast represent? The second is normalisation: relative to which benchmark should errors be judged? The third is aggregation: which series or tasks should carry more weight in the final summary?
 
-Once these questions are separated, many long-running debates become more tractable. RMSE and MAE are not rivals in search of one winner; they target different functionals. WAPE is not a universally interpretable percentage measure; it is a relative error built around a zero benchmark and therefore appropriate only in some settings. MASE and RMSSE are often strong defaults for comparative work because they make the benchmark explicit and are less sensitive to holdout scale, but they still depend on the relevance of the naive baseline. And any summary across many series is inevitably a statement about what matters more.
+Once these questions are separated, many long-running debates become more tractable. RMSE and MAE are not rivals in search of one winner; they target different functionals. WAPE is not a universally interpretable percentage measure; it is a relative error built around a zero benchmark and therefore appropriate only in some settings. MASE and RMSSE are strong defaults for comparative work because they make the benchmark explicit and are less sensitive to holdout scale, but they still depend on the relevance of the naive baseline. And any summary across many series is inevitably a statement about what matters more.
 
-Our recommendations are therefore straightforward. Start from the predictive distribution and the decision problem, not from a familiar metric. Avoid MAPE and do not treat sMAPE as a general repair. When normalisation is needed, choose a benchmark that is defensible for the data characteristics of the series. For academic benchmark studies, use RMSSE as the primary default and report MASE as a robustness check; for practitioner use, prioritise measures and aggregation schemes that align with business cost and interpretability. When aggregating across many series, state clearly whether the goal is equality across forecasting problems, weighting by business value, or something in between.
+Our recommendations are therefore straightforward. If possible, start from the predictive distribution and the decision problem, not from a familiar metric. Avoid MAPE and do not treat sMAPE as a general repair. When normalisation is needed, choose a benchmark that is defensible for the data characteristics of the series. For academic benchmark studies, use RMSSE as the primary default and report MASE as a robustness check; for practitioner use, prioritise measures and aggregation schemes that align with business cost and interpretability. When aggregating across many series, state clearly whether the goal is equality across forecasting problems, weighting by business value, or something in between.
 
 The broader implication is that evaluation design is itself part of forecasting methodology. A leaderboard, a benchmark table, or a business KPI is only as meaningful as the choices that produced it. If forecasting is to improve in both academia and practice, those choices need to become explicit, technically defensible, and aligned with the decision context they are meant to serve.
+
+<!-- TODO: can we be more concrete for the full process, for example what GIFT-Eval or fev-bench do? Lay out a clear pipeline for situations when there is no downstream decision, or when you don't know it. -->
+
 
 # Appendix
 
