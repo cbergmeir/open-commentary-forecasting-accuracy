@@ -184,51 +184,52 @@ Where cross-series comparison is required, RMSSE is often the strongest primary 
 
 # Aggregation across series is a value judgement
 
-<!-- TODO: Need to polish this section -->
+Once an error has been computed per forecast or per series, a final question remains: how should these quantities be summarised?
 
-Once an error has been computed per forecast, or per series, a final question remains: how should these quantities be summarised? 
+In forecasting, there are typically three dimensions along which test-set errors are averaged: the horizon, the forecast origin, and the series (see Figure \ref{fig:3d_of_eval}). Any or all of these dimensions can collapse to a single value. The horizon can be one-step-ahead, the origin can be fixed, and the evaluation can concern a single series. This is one key reason why MASE and RMSSE derive their scaling quantity from the training set: when the test set is small along any of these dimensions, a denominator estimated from training data provides a more stable reference. However, when each dimension covers enough observations, one can and arguably should compute the benchmark error over the test set instead, to mitigate possible problems of distributional differences between training and test set. Thus, in effect using rMAE or rRMSE with a (seasonal) naive as the explicit benchmark.
 
-In forecasting, there are usually 3 dimensions along which we average the errors from the test set: the horizon, the origins, and the series.  See Figure \ref{fig:3d_of_eval} for an illustration. It is important to note that any or all of these dimensions can collapse. For example, the horizon can be 1, we can use a fixed (single) forecast origin and we can forecast only a single time series. This is the main reason why RMSSE and MASE use a quantity derived from the training set to scale. However, if we are in a situation where the dimensions (mainly horizon and origins) have a large enough amount of data, deriving the quantity over the test set instead of the training set, and therewith effectively using rMAE and rRMSE with a (seasonal) naive as the benchmark method is preferrable. 
+A related principle is that aggregation should only be performed over comparable quantities. If series are not on the same scale, the right approach is to compute a scale-free measure such as RMSSE for each series individually and only then average across series. This concern applies even within a single series: for series whose level shifts dramatically over time, such as asset prices or other near-unit-root financial series, scale can change so drastically that evaluating different regimes separately may be appropriate.
 
-Another important issue is that we should aggregate only over comparable quantities. Thus, if the series are not on the same scale, we need to compute a scale-free measure like RMSSE per series and then in a second step average over all series. But already within a single series scale can change dramatically (for example the bitcoin price). If this is the situation in our data, we may even want to evaluate different regimes of a single time series separately.
+This points to a general tension between aggregating for stability and scaling for comparability. Dividing errors by a scale term before aggregating (as MAPE does) disentangles scale effects across series but inherits all the pathologies of percentage errors discussed earlier. Aggregating first and dividing afterwards (as WAPE does globally) borrows stability from a large pooled sample but conflates scale differences. The preferred approach is to first bring errors to a comparable scale (for example by computing RMSSE per series) and only then aggregate, so that the quantities being averaged already share a common basis.
 
-TODO: Here we always have a trade-off between that on the one hand we want to aggregate for stability, and on the other hand we want to scale everything with the right scalar to make things comparable. For example, MAPE first divides then aggregates, but this leads to all the problems outlined earlier. This why it is preferrable to first aggregate then divide. But we need to make sure that what we aggregate is on the same scale.
+Some more considerations for the three dimensions:
 
+**Horizon.** It is common to produce a multi-step output window: for an hourly series, forecasts for the next 24 hours yield 24 individual errors. Current practice typically averages these into a single metric, even though forecasts at different horizons have different statistical properties. Forecast uncertainty generally grows with the horizon and can also vary systematically (seasonally) within the prediction window. For instance, daytime hours may be inherently less predictable than night-time hours, and a two-week-ahead forecast carries more uncertainty than a one-day-ahead forecast. Averaging over all horizons therefore obscures horizon-specific behaviour. Reporting error measures separately for each horizon used to be standard practice <!-- TODO: cite original M competition papers -->, and doing so remains informative whenever horizon-specific performance is relevant to the decision problem.
 
-1) Regarding the horizon: It is common to produce an output window, for example, for an hourly time series we could produce forecasts for the next 24 hours, so we produce 24 forecasts. It is common nowadays to report average error measures over these 24 forecasts, even though they have different statistical properties, as uncertainty of the forecasts usually varies with the horizon, both seasonally and increasingly. For example, there could be more uncertainty during the day than during the night, and a forecast 2 weeks out will have more uncertainty than a forecast one day out. It used to be common to report error measures separately for differen horizons (see e.g. TODO: The original M3 paper??)
+**Origin.** The forecast origin is the time point from which the forecast is issued. In competition settings where the test set is entirely withheld, a single fixed origin is standard. In applied settings, a rolling-origin scheme where the model is re-evaluated at each successive origin is usually more realistic and yields a better estimate of operational performance. Care is required to avoid data leakage in such schemes.
 
-2) Origin: In forecasting competitions where the test set is entirely withheld, fixed-origin evaluation is the norm. However, in real-world scenarios, we want to implement a rolling-origin scheme. Need to watch out for data leakage in then. 
-
-3) Series: 
+**Series.** When aggregating over many series, the scale and weighting questions discussed in the following subsections become central. Each series contributes one or more error values, and the aggregation rule determines whether all series are treated as equally important forecasting problems or whether some are given greater influence through their scale or through explicit weights.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.5\linewidth]{paper/images/drawing_3d_of_eval.pdf}
-\caption{TODO}
+\caption{Schematic view of the three dimensions along which point forecast errors can be aggregated: forecast horizon, forecast origin, and series. Depending on the application, one or more dimensions may collapse to a single value, but in large-scale evaluations all three typically matter and the final summary depends on how errors are combined across them.}
 \label{fig:3d_of_eval}
 \end{figure}
 
-
-Aggregation is not merely descriptive. It determines which failures count, which successes dominate, and which kinds of methods are favoured. In that sense it plays the same role as the decathlon point system: it defines what kind of all-round performance is rewarded.
+In summary, aggregation is not merely descriptive. It determines which failures count, which successes dominate, and which kinds of methods are favoured. In that sense it plays the same role as the decathlon point system: it defines what kind of all-round performance is rewarded.
 
 
 ## Equal weighting and value weighting answer different questions
 
 Suppose we evaluate a method on a large panel of series. If we compute a scale-free measure per series and then take a simple average or median, every series receives equal weight. This is appropriate when every series is regarded as one forecasting problem of equal scientific importance.
 
-If instead we compute an aggregate error over all observations first, as in a global WAPE or MAE, then high-volume series dominate. This is appropriate when business value is roughly proportional to scale: a one-unit error on a large-revenue series may indeed matter more than a one-unit error on a tiny series. In that case, the weighting is intentional, not a flaw.
+If instead we compute an aggregate error over all observations first, as in a global WAPE or MAE, then high-volume series dominate. This is appropriate when business value is roughly proportional to scale: a ten percent error on a large-revenue series may indeed matter more than a ten percent error on a tiny series. In that case, the weighting is intentional, not a flaw.
 
 Neither approach is universally correct. They answer different questions. Scale-free per-series aggregation asks whether the method performs well across forecasting problems. Global aggregation in original units asks whether the method performs well where the volume is largest. In practice, many organisations want something between these extremes: not complete equality across series, but also not a metric in which one giant series overwhelms thousands of smaller yet still relevant ones.
 
-## Competition leaderboards make these choices visible
+## Evaluation across many tasks: competition leaderboards
 
-Recent benchmark datasets make the issue very concrete. In academic benchmark settings, it is now common to evaluate methods over large heterogeneous collections of series and then publish a single leaderboard score. But that single number is the output of several design decisions.
+Recent benchmark datasets add another dimension. With global modelling where models are built across sets of time series, to perform a broad evaluation we are now oftentimes evaluating different groups of series as so-called tasks (or datasets, for example, a smart-meter dataset could be a tast, and a retail dataset could be a different task). However, these large-scale evaluations still have the need to provide easy-to-understand conclusions and ideally provide a single number for the overall performance of a method.
+
+In academic benchmark settings, it is now common to evaluate methods over large heterogeneous collections of series and then publish a single leaderboard score. But that single number is the output of several design decisions.
 
 <!-- TODO: Say that these are from the ML community? 
 How do they compare with earlier such attempts, e.g. the M4? 
 Check the citations.-->
 <!-- TODO: check what fev-bench does here. They have an ELO score and I think some win rate or so? -->
-Two prominent examples are GIFT-Eval [@aksu2024gifteval] and fev-bench [@shchur2025fevbench], both designed as broad academic benchmarks for comparing methods across many heterogeneous forecasting tasks. GIFT-Eval is a concrete example for how a single leaderboard number is constructed. Its public leaderboard first computes MASE at the series level, then takes the median MASE within each task (dataset-frequency split), then normalises each task score by the corresponding score of a seasonal naive baseline, and finally aggregates the normalised task scores using a geometric mean across tasks. In compact form, if $M_j$ is the median MASE for task $j$ and $M^{(snaive)}_j$ is the seasonal-naive counterpart, the overall score is
+
+Two prominent examples are GIFT-Eval [@aksu2024gifteval] and fev-bench [@shchur2025fevbench], both designed as broad academic benchmarks for comparing methods across many heterogeneous forecasting tasks. In the following we'll discuss GIFT-Eval as a concrete example for how a single leaderboard number is constructed, as it has gained wide-spread adoption among researchers in the machine learning community. Its public leaderboard first computes MASE at the series level, then takes the median MASE within each task (dataset-frequency split), then normalises each task score by the corresponding score of a seasonal naive baseline, and finally aggregates the normalised task scores using a geometric mean across tasks. In compact form, if $M_j$ is the median MASE for task $j$ and $M^{(snaive)}_j$ is the seasonal-naive counterpart, the overall score is
 
 $$
 \left(\prod_{j=1}^{J} \frac{M_j}{M^{(snaive)}_j}\right)^{1/J}.
@@ -236,8 +237,9 @@ $$
 
 This design rewards methods that are broadly reliable and penalises those that fail badly on a subset of tasks. That may be exactly the intended objective. But it also means that the final ranking depends strongly on how tasks are defined and weighted. 
 
-<!-- TODO: The following is not just an example, it is actually what is happening in GIFT-Eval -->
-A single river-flow series represented at daily, weekly, and monthly frequencies can end up with more influence on the final ranking than a much larger collection of economically important series if each task receives equal weight. This is not an error in arithmetic. It is a value judgement embedded in the evaluation design.
+For example, in GIFT-Eval, the task construction has problems. For example, the M4 yearly dataset, which consists of nearly 23 thousand series that are already a heterogeneous collection from many different application cases, is a single task (similar for all other subsets of teh M4, such as quarterly, monthly, weekly, etc.), whereas other tasks consist of single time series, for example the flow of Saugeen river in Ontario (Canada) makes up a total of 3 tasks, as it is present in daily, weekly, and monthly aggregations, all as single tasks.
+
+Thus, a single river-flow series represented at daily, weekly, and monthly frequencies can end up with more influence on the final ranking than a much larger collection of economically important series if each task receives equal weight. This is not an error in arithmetic. It is a value judgement embedded in the evaluation design.
 
 The lesson is the same as in the decathlon analogy from the introduction. Once we aggregate across heterogeneous tasks, we are no longer asking only "which method forecasts best?" We are asking "which method forecasts best under this specific weighting of failures, scales, and domains?" Leaderboards are useful, but their scoring rules should be interpreted as part of the benchmark, not as neutral facts.
 
