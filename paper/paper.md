@@ -220,16 +220,14 @@ Neither approach is universally correct. They answer different questions. Scale-
 
 ## Evaluation across many tasks: competition leaderboards
 
-Recent benchmark datasets add another dimension. With global modelling where models are built across sets of time series, to perform a broad evaluation we are now oftentimes evaluating different groups of series as so-called tasks (or datasets, for example, a smart-meter dataset could be a tast, and a retail dataset could be a different task). However, these large-scale evaluations still have the need to provide easy-to-understand conclusions and ideally provide a single number for the overall performance of a method.
-
-In academic benchmark settings, it is now common to evaluate methods over large heterogeneous collections of series and then publish a single leaderboard score. But that single number is the output of several design decisions.
+Recent benchmark datasets add another layer to the aggregation problem. In global forecasting, where models are trained across many time series, evaluation is often organised around tasks or datasets rather than around individual series alone. For example, a smart-meter dataset may define one task and a retail dataset another. Yet even in these broader settings there is still strong pressure to produce an easily communicable conclusion, ideally a single number that summarises the overall performance of a method. But that single number is the output of several design decisions.
 
 <!-- TODO: Say that these are from the ML community? 
 How do they compare with earlier such attempts, e.g. the M4? 
 Check the citations.-->
 <!-- TODO: check what fev-bench does here. They have an ELO score and I think some win rate or so? -->
 
-Two prominent examples are GIFT-Eval [@aksu2024gifteval] and fev-bench [@shchur2025fevbench], both designed as broad academic benchmarks for comparing methods across many heterogeneous forecasting tasks. In the following we'll discuss GIFT-Eval as a concrete example for how a single leaderboard number is constructed, as it has gained wide-spread adoption among researchers in the machine learning community. Its public leaderboard first computes MASE at the series level, then takes the median MASE within each task (dataset-frequency split), then normalises each task score by the corresponding score of a seasonal naive baseline, and finally aggregates the normalised task scores using a geometric mean across tasks. In compact form, if $M_j$ is the median MASE for task $j$ and $M^{(snaive)}_j$ is the seasonal-naive counterpart, the overall score is
+Two prominent recent examples are GIFT-Eval [@aksu2024gifteval] and fev-bench [@shchur2025fevbench], both designed as broad academic benchmarks for comparing methods across many heterogeneous forecasting tasks. We focus on GIFT-Eval as a concrete illustration of how a single leaderboard number is constructed, not least because it has seen widespread adoption in the machine learning forecasting community. Its public leaderboard first computes MASE at the series level, then takes the median MASE within each task (that is, within each dataset-frequency split), then normalises each task score by the corresponding score of a seasonal naive baseline, and finally aggregates the normalised task scores using a geometric mean across tasks. In compact form, if $M_j$ is the median MASE for task $j$ and $M^{(snaive)}_j$ is the seasonal-naive counterpart, the overall score is
 
 $$
 \left(\prod_{j=1}^{J} \frac{M_j}{M^{(snaive)}_j}\right)^{1/J}.
@@ -237,11 +235,13 @@ $$
 
 This design rewards methods that are broadly reliable and penalises those that fail badly on a subset of tasks. That may be exactly the intended objective. But it also means that the final ranking depends strongly on how tasks are defined and weighted. 
 
-For example, in GIFT-Eval, the task construction has problems. For example, the M4 yearly dataset, which consists of nearly 23 thousand series that are already a heterogeneous collection from many different application cases, is a single task (similar for all other subsets of teh M4, such as quarterly, monthly, weekly, etc.), whereas other tasks consist of single time series, for example the flow of Saugeen river in Ontario (Canada) makes up a total of 3 tasks, as it is present in daily, weekly, and monthly aggregations, all as single tasks.
+GIFT-Eval illustrates how consequential the task definition itself can be. The M4 yearly dataset, which contains nearly 23,000 series drawn from many different application domains, enters as a single task; the same is true of the other M4 frequency subsets, such as quarterly, monthly, and weekly. By contrast, some other tasks consist of only a single time series. For instance, the flow of the Saugeen River in Ontario appears as three separate tasks because it is represented at daily, weekly, and monthly frequencies.
 
 Thus, a single river-flow series represented at daily, weekly, and monthly frequencies can end up with more influence on the final ranking than a much larger collection of economically important series if each task receives equal weight. This is not an error in arithmetic. It is a value judgement embedded in the evaluation design.
 
 The lesson is the same as in the decathlon analogy from the introduction. Once we aggregate across heterogeneous tasks, we are no longer asking only "which method forecasts best?" We are asking "which method forecasts best under this specific weighting of failures, scales, and domains?" Leaderboards are useful, but their scoring rules should be interpreted as part of the benchmark, not as neutral facts.
+
+<!-- TODO: What about fev-bench, the elo score that they have and the win percentage? -->
 
 ## What should count more in practice?
 
@@ -253,9 +253,11 @@ This is especially important when communicating results between technical and no
 
 ## Recommendations for summarising performance
 
+<!-- TODO: I want to have different recommendations for academics and practitioners. It seems these recommendations are for practitioners. The recommendations for academics are much more along the lines of GIFT-Eval. -->
+
 Three practical rules follow.
 
-First, separate the within-series error measure from the across-series aggregation step. They solve different problems and should not be conflated.
+First, separate conceptually the within-series error measure from the across-series aggregation step. They solve different problems and should not be conflated.
 
 Second, make the weighting scheme explicit. "Equal weight per series", "equal weight per task", and "weight proportional to revenue" are all defensible choices, but they describe different objectives.
 
@@ -273,6 +275,19 @@ The broader implication is that evaluation design is itself part of forecasting 
 
 <!-- TODO: can we be more concrete for the full process, for example what GIFT-Eval or fev-bench do? Lay out a clear pipeline for situations when there is no downstream decision, or when you don't know it. -->
 
+<!-- TODO: Should include the following somewhere a bit more clearly:
+• MASE is an absolute error measure, optimal under the median of
+the forecast distribution.
+• Is this ideal for an academic benchmark? Arguably better would be
+a squared error like RMSSE.
+• It will depend on the downstream decision that you are making
+whether MASE or RMSSE or something else is the best error
+measure.
+• But in an academic setting there is no downstream decision! ⇒ so
+what should we do in an academic setting?
+• Ideally we want to perform well under any possible down-stream
+decision.
+ -->
 
 # Appendix
 
