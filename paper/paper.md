@@ -216,12 +216,26 @@ Neither approach is universally correct. They answer different questions. Scale-
 
 ## Evaluation across many tasks: competition leaderboards
 
-Recent benchmark datasets add another layer to the aggregation problem. In global forecasting, where models are trained across many time series, evaluation is often organised around tasks or datasets rather than around individual series alone. For example, a smart-meter dataset may define one task and a retail dataset another. Yet even in these broader settings there is still strong pressure to produce an easily communicable conclusion, ideally a single number that summarises the overall performance of a method. But that single number is the output of several design decisions.
+<!-- TODO: Also say somewhere that ARIMA and ETS have single seasonalities and are not designed for high-frequent data. So having them lose in comparisons with lots of high-frequent data doesn't say much about their performance on lower frequent data. -->
+<!-- Maybe also say that the umbrella "time series forecasting" may often be too broad. -->
+
+Recent benchmark datasets add another layer to the aggregation problem. In global forecasting, where models are trained across many time series, evaluation is often organised around tasks or datasets rather than around individual series alone. For example, a smart-meter dataset may define one task and a retail dataset another. Yet even in these broader settings there is still strong pressure to produce an easily communicable conclusion, ideally a single number that summarises the overall performance of a method to be able to claim a general best method for "forecasting" as a whole. But that single number is the output of several design decisions.
+
+<!-- Maybe talk here more directly about that what the community did with ETT etc. datasets is clearly inadequate, but recent developments like GIFT-Eval and fev-bench are a lot better. -->
 
 <!-- TODO: Say that these are from the ML community? 
 How do they compare with earlier such attempts, e.g. the M4? 
 Check the citations.-->
 <!-- TODO: check what fev-bench does here. They have an ELO score and I think some win rate or so? -->
+<!-- TODO: What about fev-bench, the elo score that they have and the win percentage? -->
+<!-- fev-bench is based on MASE, with all the advantages and disadvantages discussed before. Also, not sure how they aggregate within a task? Probably median?
+
+fev-bench has average win rate and skill score. Average win rate compares methods against the others. Skill score compares with a benchmark. 
+
+The average win rate is equivalent to average rank, i.e., it doesn't matter by how much you win, just that you win. Also, if new methods come in the rankings change. Not sure if it also has the problem that the methods can steal ranks from each other. 
+
+Skill score: 
+-->
 
 Two prominent recent examples are GIFT-Eval [@aksu2024gifteval] and fev-bench [@shchur2025fevbench], both designed as broad academic benchmarks for comparing methods across many heterogeneous forecasting tasks. We focus on GIFT-Eval as a concrete illustration of how a single leaderboard number is constructed, not least because it has seen widespread adoption in the machine learning forecasting community. Its public leaderboard first computes MASE at the series level, then takes the median MASE within each task (that is, within each dataset-frequency split), then normalises each task score by the corresponding score of a seasonal naive baseline, and finally aggregates the normalised task scores using a geometric mean across tasks. In compact form, if $M_j$ is the median MASE for task $j$ and $M^{(snaive)}_j$ is the seasonal-naive counterpart, the overall score is
 
@@ -237,7 +251,7 @@ Thus, a single river-flow series represented at daily, weekly, and monthly frequ
 
 The lesson is the same as in the decathlon analogy from the introduction. Once we aggregate across heterogeneous tasks, we are no longer asking only "which method forecasts best?" We are asking "which method forecasts best under this specific weighting of failures, scales, and domains?" Leaderboards are useful, but their scoring rules should be interpreted as part of the benchmark, not as neutral facts.
 
-<!-- TODO: What about fev-bench, the elo score that they have and the win percentage? -->
+
 
 ## What should count more in practice?
 
