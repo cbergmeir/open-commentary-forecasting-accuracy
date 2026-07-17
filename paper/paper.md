@@ -82,7 +82,7 @@ Short derivations are provided in the Appendix (Section \ref{app-elicitation}).
 This immediately implies that the common point forecast measures are not interchangeable. Root mean squared error (RMSE) and mean absolute error (MAE) are not just two different ways of summarising the same notion of accuracy. They reward different forecast targets. If two models produce similar predictive distributions but one is better at estimating the mean while the other is better at estimating the median, RMSE and MAE may rank them differently without either ranking being wrong.
 
 This is one reason why the blanket question "should I use RMSE or MAE?" has no universal answer. If the business decision is approximately linear in the absolute deviation, MAE may be appropriate. If large misses are disproportionately costly and the forecast target is a mean, RMSE may be preferable. 
-If forecasts need to add up, e.g., in a hierarchical setting, they also need to be conditional means. If the data is intermittent (naely, if over 50% of the data is zero), the median will be a zero, so that under MAE beating a constant zero forecast is oftentimes not possible in this setting.
+If forecasts need to add up, e.g., in a hierarchical setting, they also need to be conditional means. If the data is intermittent (namely, if over 50% of the data is zero), the median will be a zero, so that under MAE beating a constant zero forecast is oftentimes not possible in this setting.
 
 If the predictive distribution is symmetric, the distinction is often less consequential because mean and median coincide, which is why RMSE- and MAE-based comparisons can agree in simple stationary settings [@Hyndman2006Another; @Hewamalage2023Forecast]. But in skewed or intermittent settings the distinction can matter a great deal.
 
@@ -165,7 +165,7 @@ MASE and RMSSE scale by the in-sample performance of a naive benchmark rather th
 
 The key advantage of this design is that the first (seasonal) difference of a series (which equals the error of a naive forecast) is far more likely to be stationary than the level of the series itself. MASE and RMSSE therefore handle many common non-stationary situations more gracefully than measures whose denominator depends on the magnitude of the series. A further benefit is that using the training set for scaling, rather than the test set, reduces sensitivity to short or unrepresentative test windows (see also Section \ref{sec-aggregation}).
 
-That said, these measures also have drawbacks. At first glance they appear interpretable: a value greater than one means the method out-of-sample performs worse than the naive baseline on the training set, so we might expect MASE to lie between 0 and 1 for any useful model. In practice, however, forecasters typically predict multi-step output windows whose horizon does not coincide with the single-step naive used in the denominator, so values above one are common and do not indicate poor performance per se.
+That said, these measures also have drawbacks. At first glance they appear interpretable: a value greater than one means the method out-of-sample performs worse than the naive baseline on the training set, so we might expect MASE to lie between 0 and 1 for any useful model. In practice, however, forecasters typically predict multi-step output windows whose horizon does not coincide with the single-step naive forecast used in the denominator, so values above one are common and do not indicate poor performance per se.
 
 More fundamentally, the measures are only as meaningful as the naive benchmark in their denominator. If the training and test sets have very different statistical properties, or if a naive forecast is not a reasonable baseline for the domain, the scaled error values lose their intended reference point. For example, when a series has a strong predictable trend, a one-step naive benchmark can be much less informative than in a weakly dependent stationary setting. A related issue appeared in the M5 forecasting competition: some product-level series had near-zero values for most of the training period and then rose sharply in the test period. Because naive forecasts look very accurate on long zero stretches, methods are penalised heavily for missing the subsequent regime change under MASE and RMSSE, giving such series disproportionate influence in the aggregated score.
 
@@ -225,7 +225,7 @@ Neither approach is universally correct. They answer different questions. Scale-
 The M4 competition [@makridakis2018m4] is a milestone in large-scale forecasting evaluation, bringing together 100,000 time series across six frequency groups (yearly, quarterly, monthly, weekly, daily, and hourly) and multiple application domains. Its primary metric was sMAPE, supplemented by an overall weighted average (OWA) that combined sMAPE and MASE in equal parts relative to a naive seasonal benchmark. Regretfully this design embedded the limitations of sMAPE discussed in Section \ref{sec-probabilistic} directly into the competition's headline score, and it was influential enough that sMAPE remains in circulation partly for the purpose of legacy comparisons with M4 results. At the same time, the competition validated important substantive findings: machine learning methods can perform well, global modelling can perform well, simple methods remained competitive, and no single method dominated uniformly across all frequencies and domains.
 Still, it had the classical setup where each time series is seen as a separate task. To accommodate for the realities of global models that train across many series, recent benchmark datasets add another layer to the aggregation problem. In this setting, evaluation is often organised around tasks or datasets rather than around individual series alone. For example, a smart-meter dataset may define one task and a retail dataset another. Yet even in these broader settings there is still strong pressure to produce an easily communicable conclusion, ideally a single number that summarises the overall performance of a method to be able to claim a general best method for "forecasting" as a whole. But that single number is the output of several design decisions.
 
-Two prominent recent examples are GIFT-Eval [@aksu2024gifteval] and fev-bench [@shchur2025fevbench], both designed as broad academic benchmarks for comparing methods across many heterogeneous forecasting tasks. We focus on GIFT-Eval as a concrete illustration of how a single leaderboard number is constructed, not least because it has seen widespread adoption in the machine learning forecasting community. Its public leaderboard first computes MASE at the series level, then takes the median MASE within each task (that is, within each dataset-frequency split), then normalises each task score by the corresponding score of a seasonal naive baseline, and finally aggregates the normalised task scores using a geometric mean across tasks. In compact form, if $M_j$ is the median MASE for task $j$ and $M^{(snaive)}_j$ is the seasonal-naive counterpart, the overall score is
+Two prominent recent examples are GIFT-Eval [@aksu2024gifteval] and fev-bench [@shchur2025fevbench], both designed as broad academic benchmarks for comparing methods across many heterogeneous forecasting tasks. Let's first look at GIFT-Eval as it has seen widespread adoption in the machine learning forecasting community. Its public leaderboard first computes MASE at the series level, then takes the median MASE within each task (that is, within each dataset-frequency split), then normalises each task score by the corresponding score of a seasonal naive baseline, and finally aggregates the normalised task scores using a geometric mean across tasks. In compact form, if $M_j$ is the median MASE for task $j$ and $M^{(snaive)}_j$ is the seasonal-naive counterpart, the overall score is
 
 $$
 \left(\prod_{j=1}^{J} \frac{M_j}{M^{(snaive)}_j}\right)^{1/J}.
@@ -233,21 +233,21 @@ $$
 
 This design rewards methods that are broadly reliable and penalises those that fail badly on a subset of tasks. That may be exactly the intended objective. But it also means that the final ranking depends strongly on how tasks are defined and weighted.
 
-GIFT-Eval illustrates how consequential the task definition itself can be. The M4 yearly dataset, which contains nearly 23,000 series drawn from many different application domains, enters as a single task; the same is true of the other M4 frequency subsets, such as quarterly, monthly, and weekly. By contrast, some other tasks consist of only a single time series. For instance, the flow of the Saugeen River in Ontario appears as three separate tasks because it is represented at daily, weekly, and monthly frequencies.
+GIFT-Eval illustrates how consequential the task definition itself can be. For example the M4 yearly dataset, which contains nearly 23,000 series drawn from many different application domains, enters as a single task; the same is true of the other M4 frequency subsets, such as quarterly, monthly, and weekly. By contrast, some other tasks consist of only a single time series. For instance, the flow of the Saugeen River in Ontario appears as three separate tasks because it is represented at daily, weekly, and monthly frequencies.
+Thus, this single river-flow series represented at daily, weekly, and monthly frequencies can end up with more influence on the final ranking than a much larger collection of economically important series as each task receives equal weight. This is not an error in arithmetic. It is a value judgement embedded in the evaluation design.
 
-Thus, a single river-flow series represented at daily, weekly, and monthly frequencies can end up with more influence on the final ranking than a much larger collection of economically important series if each task receives equal weight. This is not an error in arithmetic. It is a value judgement embedded in the evaluation design.
-
-<!-- TODO: revise and change the fev-bench section. -->
-fev-bench [@shchur2025fevbench] addresses some of these concerns but introduces its own. Rather than a single geometric mean of normalised MASE scores, it provides two aggregate summaries: an average win rate and a skill score. The average win rate counts how often a given method outperforms each other method across tasks; it is in effect equivalent to average rank in the sense that only the direction of the comparison matters, not the magnitude of the difference. This makes the aggregate robust to scale, but it also means that a method which narrowly beats many competitors on some tasks and loses badly on others can score as well as one that wins more broadly. A further consequence is that rankings are not stable: as new methods are added to the leaderboard, the win rates of all other methods change. The skill score is MASE-based, clips task-level scores to avoid outsized influence from any single task, and uses a geometric mean for final aggregation---broadly parallel to GIFT-Eval's last step. One practical improvement in fev-bench is that tasks appear to be defined more carefully: the entire M5 competition data, for instance, constitutes only three tasks, which reduces the imbalance between a large multi-domain collection and a single sensor stream. Nevertheless, the fundamental tension persists. Some tasks still consist of a single time series, task boundaries remain a value judgement, and a benchmark claiming to represent "time series forecasting" broadly still depends on which domains and frequencies its designers chose to include.
+The fev-bench work [@shchur2025fevbench] addresses some of these concerns and is a further step forward towards a meaningful and well-rounded evaluation suite, though it still has some drawbacks. Rather than a single geometric mean of normalised MASE scores, it provides two aggregate summaries: an average win rate and a skill score. The average win rate counts how often a given method outperforms each other method across tasks; it is in effect equivalent to average rank in the sense that only the direction of the comparison matters, not the magnitude of the difference. This makes the aggregate robust to scale, but it also means that a method which narrowly beats many competitors on some tasks and loses badly on others can score as well as one that wins more broadly. Also in such settings we can often observe a problem that we'll call "rank stealing", where very similar methods by chance beat each other or don't, so that both end up with lower rankings than if only one of them had entered the competition.
+ Also, rankings are relative to the methods included in the comparison: as new methods are added to the leaderboard, the win rates of all other methods change. 
+ The second score used by fev-bench is the a skill score that is MASE-based, clips task-level scores to avoid outsized influence from any single task, and uses a geometric mean for final aggregation, broadly parallel to GIFT-Eval's last step. This score is a good way of evaluating with the only caveats that as discussed before RMSSE is usually preferrable over MASE and that clipping task level scores and using a geometric mean are design choices to favour models that broadly perform well over specialist models that only on certain tasks perform well. 
+ One practical improvement in fev-bench is that tasks appear to be defined more carefully. However, the fundamental tension persists: Should teh entire M5 constitute only three tasks when other tasks still consist of a single time series? Task boundaries remain a value judgement, and a benchmark claiming to represent "time series forecasting" broadly still depends on which domains and frequencies its designers chose to include.
 
 
 The lesson is the same as in the decathlon analogy from the introduction. Once we aggregate across heterogeneous tasks, we are no longer asking only "which method forecasts best?" We are asking "which method forecasts best under this specific weighting of failures, scales, and domains?" Leaderboards are useful, but their scoring rules should be interpreted as part of the benchmark, not as neutral facts.
 
-<!-- TODO: Say somewhere that fev-bench is a lot better than for example the ETT dataset evaluation, but still we need to keep in mind that it is only as representative as the datasets, their weighting, and that it is based on MASE. -->
 
 ## What should count more in practice?
 
-For practical forecast evaluation, the weighting scheme should be chosen deliberately and explained in business terms.
+For practical forecast evaluation in real-world settings, the weighting scheme should be chosen deliberately and explained in business terms.
 
 If all series are equally important, use scale-free per-series measures and aggregate them with a mean or median. If larger series matter more because they drive revenue, inventory cost, or service levels, use explicit weights that reflect those stakes. If some strategic series are disproportionately important, assign those weights directly rather than hoping that an off-the-shelf metric will encode the priority by accident. And if robustness matters, report sensitivity to several aggregation choices.
 
@@ -255,41 +255,31 @@ This is especially important when communicating results between technical and no
 
 ## Recommendations for summarising performance
 
-<!-- TODO: I want to have different recommendations for academics and practitioners. It seems these recommendations are for practitioners. The recommendations for academics are much more along the lines of GIFT-Eval. -->
+<!-- TODO: polish the following. -->
 
-Three practical rules follow.
+The first recommendation is that different processes need to be followed in academia and in industry. In academic setting we want a broadly applicable forecasting method but the downstream decision is unknown and in practice non-existent. Ideally we want to perform well under any possible down-stream decision. Thus, regarding academic exercises of finding broadly applicable competitive methods:
 
-First, separate conceptually the within-series error measure from the across-series aggregation step. They solve different problems and should not be conflated.
+- use RMSSE as the default measure (instead of MASE), do not expect it to be interpretable.
+- then follow a multi-step process like the one in fev-bench
+- one grand average can be reported but it will lose a lot of important detail as the result could be driven by a few atypical tasks or by a hidden weighting effect, so more targeted evaluations in addition are valuable, for example by frequency, by dataset characteristic, or by application domain, to make it obvious where a method is strong and where it has weaknesses.
 
-Second, make the weighting scheme explicit. "Equal weight per series", "equal weight per task", and "weight proportional to revenue" are all defensible choices, but they describe different objectives.
+In industry settings where we have a single task to focus on and a (at least partly) known downstream decision:
 
-Third, avoid reporting only one grand average whenever the result could be driven by a few atypical tasks or by a hidden weighting effect. At minimum, a primary aggregate should be accompanied by a small amount of distributional information, such as a median together with a mean, or task-level summaries that make obvious where the method wins and where it fails.
+- You can again start with RMSSE if it fits the downstream decision, or if your test periods all are long, rRMSE is a good alternative. These measures will not be interpretable.
+- make the weighting scheme explicit. "Equal weight per series", "equal weight per task", and "weight proportional to revenue" are all defensible choices, but they describe different objectives.
+
+
 
 # Conclusion
 
 Point forecast evaluation is often made unnecessarily confusing because three different design choices are mixed together. The first is elicitation: which summary of the predictive distribution should the point forecast represent? The second is normalisation: relative to which benchmark should errors be judged? The third is aggregation: which series or tasks should carry more weight in the final summary?
 
-Once these questions are separated, many long-running debates become more tractable. RMSE and MAE are not rivals in search of one winner; they target different functionals. WAPE is not a universally interpretable percentage measure; it is a relative error built around a zero benchmark and therefore appropriate only in some settings. MASE and RMSSE are strong defaults for comparative work because they make the benchmark explicit and are less sensitive to holdout scale, but they still depend on the relevance of the naive baseline. And any summary across many series is inevitably a statement about what matters more.
+Once these questions are separated, many long-running debates become more tractable. RMSE and MAE are not rivals in search of one winner; they target different functionals. WAPE is not a universally interpretable percentage measure; it is a relative error built around a zero benchmark and therefore appropriate only in some settings. MASE and RMSSE are strong defaults for comparative work because they make the benchmark explicit and are less sensitive to holdout scale, but they still depend on the relevance of the naive baseline, and RMSSE is usually preferred over MASE. And any summary across many series is inevitably a statement about what matters more.
 
 Our recommendations are therefore straightforward. If possible, start from the predictive distribution and the decision problem, not from a familiar metric. Avoid MAPE and do not treat sMAPE as a general repair. When normalisation is needed, choose a benchmark that is defensible for the data characteristics of the series. For academic benchmark studies, use RMSSE as the primary default and report MASE as a robustness check; for practitioner use, prioritise measures and aggregation schemes that align with business cost and interpretability. When aggregating across many series, state clearly whether the goal is equality across forecasting problems, weighting by business value, or something in between.
 
 The broader implication is that evaluation design is itself part of forecasting methodology. A leaderboard, a benchmark table, or a business KPI is only as meaningful as the choices that produced it. If forecasting is to improve in both academia and practice, those choices need to become explicit, technically defensible, and aligned with the decision context they are meant to serve.
 
-<!-- TODO: can we be more concrete for the full process, for example what GIFT-Eval or fev-bench do? Lay out a clear pipeline for situations when there is no downstream decision, or when you don't know it. -->
-
-<!-- TODO: Should include the following somewhere a bit more clearly:
-• MASE is an absolute error measure, optimal under the median of
-the forecast distribution.
-• Is this ideal for an academic benchmark? Arguably better would be
-a squared error like RMSSE.
-• It will depend on the downstream decision that you are making
-whether MASE or RMSSE or something else is the best error
-measure.
-• But in an academic setting there is no downstream decision! ⇒ so
-what should we do in an academic setting?
-• Ideally we want to perform well under any possible down-stream
-decision.
- -->
 
 # Appendix
 
