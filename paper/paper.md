@@ -1,5 +1,5 @@
 ---
-title: "An open commentary about evaluation of point forecast accuracy: the current state of the art, recommendations for both academics and practitioners"
+title: "A commentary about evaluation of point forecast accuracy: the current state of the art, recommendations for both academics and practitioners"
 author:
   - "First Author \\ Institution A"
   - "Second Author \\ Institution B"
@@ -256,14 +256,15 @@ This is especially important when communicating results between technical and no
 ## Recommendations for summarising performance
 
 <!-- TODO: polish the following. -->
+\CBtodo{Example visible comment in draft PDF: tighten wording of the industry recommendations and verify consistency with the conclusion.}
 
-The first recommendation is that different processes need to be followed in academia and in industry. In academic setting we want a broadly applicable forecasting method but the downstream decision is unknown and in practice non-existent. Ideally we want to perform well under any possible down-stream decision. Thus, regarding academic exercises of finding broadly applicable competitive methods:
+The first recommendation is that different processes need to be followed in academia and in industry. In academic setting we want a broadly applicable forecasting method but the downstream decision is unknown and in practice non-existent. Ideally we want to perform well under any possible down-stream decision. Thus, regarding academic exercises of finding broadly applicable competitive methods the recommendations are as follows:
 
-- use RMSSE as the default measure (instead of MASE), do not expect it to be interpretable.
-- then follow a multi-step process like the one in fev-bench
-- one grand average can be reported but it will lose a lot of important detail as the result could be driven by a few atypical tasks or by a hidden weighting effect, so more targeted evaluations in addition are valuable, for example by frequency, by dataset characteristic, or by application domain, to make it obvious where a method is strong and where it has weaknesses.
+- Use RMSSE as the primary default (instead of MASE), while treating it as a comparative rather than directly interpretable quantity.
+- Use a multi-step evaluation process, similar to fev-bench.
+- If reporting a grand average, accompany it with targeted breakdowns by frequency, dataset characteristics, and application domain, so that strengths and weaknesses of the methods are visible.
 
-In industry settings where we have a single task to focus on and a (at least partly) known downstream decision:
+In industry settings where we have a single task to focus on and an (at least partly) known downstream decision:
 
 - You can again start with RMSSE if it fits the downstream decision, or if your test periods all are long, rRMSE is a good alternative. These measures will not be interpretable.
 - make the weighting scheme explicit. "Equal weight per series", "equal weight per task", and "weight proportional to revenue" are all defensible choices, but they describe different objectives.

@@ -7,3 +7,5 @@ link-citations: true
 numbersections: true
 header-includes:
   - '\usepackage{graphicx}'
+  - '\usepackage[colorinlistoftodos]{todonotes}'
+  - '\newcommand{\CBtodo}[1]{\todo[inline,color=blue!12]{\textbf{Christoph Bergmeir}: #1}}'
