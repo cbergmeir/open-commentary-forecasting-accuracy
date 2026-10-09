@@ -99,7 +99,13 @@ One practical attraction of sMAPE, especially in some machine learning settings,
 
 To summarise, many researchers have argued that MAPE should no longer be used as a default point forecast measure, and that sMAPE should not be treated as its clean fix. We support this argument. The continued use of these measures is best explained historically and institutionally, not statistically.
 We acknowledge that it is justifiable, for example, to use sMAPE to compare a new method with historical results of the M3 and M4 forecasting competitions in a fair way. As the original competition participants knew they were going to be evaluated by this metric, it is plausible that they optimised their forecasts towards it, so now using different measures to compare to these original results would be unfair.
+
+
 This argument may also be valid in a business setting where we compare with a legacy system. However, we see that in practice this argument should be used with caution, as it is often an easy excuse for stakeholders to stick to business as usual and to outdated practices that clearly have been shown by research to be flawed.
+%
+If MAPE must be reported, for example due to the preferences of senior business stakeholders, there are some tweaks to consider. One can floor the denominator by setting the minimum of the actual values to 1, which keeps the measure computable but is exactly the kind of ad hoc engineering discussed above. Furthermore, we recommend that it be aggregated using the median rather than the mean (i.e., the median absolute percentage error across time points or series). The median is far less sensitive to the extreme percentages produced by small denominators, so a few near-zero actuals no longer dominate the result. This mitigates the instability but does not remove the other problems of percentage errors, so such a figure should be reported alongside a better-grounded measure, and not be used for model selection or optimisation.
+
+It is also worth clarifying what business stakeholders actually mean when they ask for "MAPE". In our experience, they often have in mind a growth error, $(\hat y_t - y_t)/y_{t_0}$, where $y_{t_0}$ is the actual value at the forecast origin. This stems from planning processes: if the plan assumed 20% growth and the business actually grew 15%, the error is 5 percentage points. Because the denominator is fixed at the origin and the sign is retained, this quantity is essentially a scaled bias, and it avoids the small-denominator problem of MAPE as long as the value at the origin is not near zero. It is a legitimate planning KPI, but it answers a different question than MAPE, and it should be called by a different name. Being signed, it should be aggregated without taking absolute values if bias is the target, and with absolute values if overall accuracy relative to the planning baseline is of interest. Agreeing with stakeholders on which of these is meant can remove the need to report MAPE altogether.
 
 ## The training loss and the evaluation measure should usually align
 
@@ -206,6 +212,8 @@ In summary, aggregation is not merely descriptive. It determines which failures 
 Suppose we evaluate a method on a large panel of series. If we compute a scale-free measure per series and then take a simple average or median, every series receives equal weight. This is appropriate when every series is regarded as one forecasting problem of equal scientific importance.
 
 If instead we compute an aggregate error over all observations first, as in a global WAPE or MAE, then high-volume series dominate. This is appropriate when business value is roughly proportional to scale: a ten percent error on a large-revenue series may indeed matter more than a ten percent error on a tiny series. In that case, the weighting is intentional, not a flaw.
+
+In industry, reporting both views is often valuable: together they show whether a forecasting algorithm or its adjustments improve performance broadly across series or mainly on the larger-valued ones.
 
 Neither approach is universally correct. They answer different questions. Scale-free per-series aggregation asks whether the method performs well across forecasting problems. Global aggregation in original units asks whether the method performs well where the volume is largest. In practice, many organisations want something between these extremes: not complete equality across series, but also not a metric in which one giant series overwhelms thousands of smaller yet still relevant ones.
 
