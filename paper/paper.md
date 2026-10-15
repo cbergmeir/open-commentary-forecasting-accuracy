@@ -1,5 +1,5 @@
 ---
-title: "A commentary about evaluation of point forecast accuracy: the current state of the art, recommendations for both academics and practitioners"
+title: "DRAFT: A commentary about evaluation of point forecast accuracy: the current state of the art, recommendations for both academics and practitioners"
 author:
   - "First Author \\ Institution A"
   - "Second Author \\ Institution B"
