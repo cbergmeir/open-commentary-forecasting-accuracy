@@ -74,6 +74,8 @@ where $L(a,y)$ is the loss incurred by predicting $a$ when the outcome is $y$. D
 
 Short derivations are provided in the Appendix (Section \ref{app-elicitation}).
 
+Mean optimality here concerns expected squared error. A square root applied after pooling squared errors preserves their ordering, while averaging separately rooted finite-window scores can change the elicited target (Section \ref{sec-root-aggregation}).
+
 This immediately implies that the common point forecast measures are not interchangeable. Root mean squared error (RMSE) and mean absolute error (MAE) are not just two different ways of summarising the same notion of accuracy; they reward different forecast targets. If two models produce similar predictive distributions but one is better at estimating the mean while the other is better at estimating the median, RMSE and MAE may rank them differently without either ranking being wrong.
 
 This is one reason why the blanket question "should I use RMSE or MAE?" has no universal answer. If the business decision is approximately linear in the absolute deviation, MAE may be appropriate. If large misses are disproportionately costly and the forecast target is a mean, RMSE may be preferable.
@@ -207,7 +209,7 @@ Regarding the choice between MASE and RMSSE, it is, in essence, the same as the 
 
 There are also substantive reasons to prefer RMSSE as the default. First, it is the safe choice in both cases. As discussed in Section \ref{sec-elicitation}, if the predictive distribution is symmetric, the mean and the median coincide and the two measures will recommend similar methods, so nothing is lost by using RMSSE. If it is skewed, the two measures can disagree, and in the majority of applications it is the mean that is needed. Second, most forecasting approaches produce conditional means: ETS and ARIMA estimated via likelihood, as well as machine learning approaches trained with MSE. So, evaluating them with RMSSE measures what they actually produce. Third, the difference matters most on intermittent data. MASE inherits the property of MAE discussed in Section \ref{sec-elicitation}: when more than half of the observations are zero, the zero forecast minimises it. For example, @Svetunkov2024Point shows an intermittent series on which the zero forecast has a lower MAE than the mean (8.85 vs 10.32) but a much higher RMSE (13.76 vs 10.54). A recommendation not to replenish stock for intermittent demand at all is hardly a useful outcome of an evaluation. Finally, if forecasts need to add up across a hierarchy, they need to be means, and RMSSE is consistent with this requirement. This is also one of the reasons why RMSSE was adopted in the M5 competition [@Makridakis2020M5], which dealt with a hierarchy of mostly intermittent retail series, as recommended originally by @Athanasopoulos2023Evaluation.
 
-We therefore recommend RMSSE as the default for broad comparative evaluation (as in many academic settings), with MASE as a useful complement when the median is the intended target. Note that the lower sensitivity of MASE to large errors is not by itself a reason to prefer it: as argued in Section \ref{sec-training-loss}, if the extreme observations are genuine outcomes, downweighting them changes the target rather than making the evaluation more robust.
+We therefore recommend RMSSE as the default for broad comparative evaluation (as in many academic settings), with MASE as a useful complement when the median is the intended target. The mean-oriented interpretation requires stating where the root is taken: for short windows, an average of separately computed RMSSE scores need not be minimised in expectation by conditional means (Section \ref{sec-root-aggregation}). Note that the lower sensitivity of MASE to large errors is not by itself a reason to prefer it: as argued in Section \ref{sec-training-loss}, if the extreme observations are genuine outcomes, downweighting them changes the target rather than making the evaluation more robust.
 
 In sum, when the goal is to compare methods across many forecasting problems, which is the typical setup in academic research, RMSSE should be the default. Any departure from this default should be accompanied by a clear explanation of why a different measure better suits the evaluation context.
 
@@ -267,6 +269,34 @@ Some more considerations for the three dimensions:
 \end{figure}
 
 In summary, aggregation is not merely descriptive. It determines which failures count, which successes dominate, and which kinds of methods are favoured. In that sense it plays the same role as the decathlon point system: it defines what kind of all-round performance is rewarded.
+
+## The position of the square root matters {#sec-root-aggregation}
+
+The mean-optimality statement for squared error requires care when RMSE is averaged over short evaluation windows. Taking a square root after all squared errors have been pooled preserves their ranking on the realised data. Taking a separate square root within each series or origin, and then averaging, defines a different criterion. This distinction connects elicitation (Section \ref{sec-elicitation}) with aggregation: the expected score of the complete evaluation rule determines its optimal forecast [@gneiting2011making].
+
+For a forecast vector $a=(a_1,\ldots,a_H)$ issued before a random future window $Y=(Y_1,\ldots,Y_H)$, distinguish
+$$
+R_{\mathrm{pooled}}(a)=\sqrt{\mathbb{E}\left[H^{-1}\sum_{h=1}^H(Y_h-a_h)^2\right]}
+\quad\text{from}\quad
+R_{\mathrm{window}}(a)=\mathbb{E}\left[\sqrt{H^{-1}\sum_{h=1}^H(Y_h-a_h)^2}\right].
+$$
+The former is minimised by the componentwise conditional mean. The latter is proportional to expected Euclidean distance and is minimised by a geometric median of the joint future-window distribution, which need not be that mean. At $H=1$, window RMSE is exactly absolute error, so averaging one-step RMSE scores elicits a median. A fixed positive training-data scale does not change this conclusion: the same distinction applies to RMSSE when a separate root is taken for each window.
+
+A small intermittent-demand example makes the difference explicit. Suppose the future observations are independent Bernoulli variables with probability $p=0.2$, and a constant forecast $a$ is issued for all $H$ steps. The conditional mean is 0.2 and the median is zero. At $H=1$, the zero forecast has expected window RMSE 0.20, below the mean forecast's 0.32. In contrast, their expected squared errors are 0.20 and 0.16, respectively. Neither calculation contains estimation error or an uncertain denominator.
+
+For longer windows the expected score can be computed by summing over the binomial count of positive demand observations (Appendix \ref{app-root-aggregation}).
+
+| Window length $H$ | Optimal constant for expected window RMSE | Expected window RMSE at optimum | Expected window RMSE at mean forecast |
+|---:|---:|---:|---:|
+| 1 | 0.000000 | 0.200000 | 0.320000 |
+| 4 | 0.000000 | 0.337182 | 0.369224 |
+| 8 | 0.133547 | 0.380183 | 0.384418 |
+| 32 | 0.189660 | 0.396239 | 0.396371 |
+| 256 | 0.198816 | 0.399557 | 0.399559 |
+
+These are finite sums over all possible counts, evaluated numerically, rather than Monte Carlo estimates. In this independent example the optimum approaches the mean as the window grows. Long windows can therefore make the distinction small, but adding more independently scored short windows does not remove it: their average estimates $R_{\mathrm{window}}$, not $R_{\mathrm{pooled}}$.
+
+This does not invalidate RMSE or RMSSE as descriptive measures, nor imply that any particular benchmark has a practically important distortion. It requires an explicit order of operations. If mean elicitation is essential, aggregate squared errors with positive weights and scales fixed from information available when the forecasts are issued, then take one root for presentation. State the axes over which errors are pooled. If a mean of per-series or per-origin RMSSE values is preferred, report that choice and avoid claiming that conditional means necessarily minimise its expected finite-window score. The numerical example and its full table are reproducible with `python scripts/rmse_aggregation.py` using NumPy and SciPy.
 
 ## Equal weighting and value weighting answer different questions
 
@@ -484,5 +514,21 @@ $$
   F(a^*)=\tfrac12.
 $$
 Hence, absolute-error-optimal point forecasts are medians (not necessarily unique when $Y$ has atoms).
+
+## Exact finite-window RMSE calculation {#app-root-aggregation}
+
+Let $Y_1,\ldots,Y_H$ be independent Bernoulli($p$) outcomes, and let $K=\sum_hY_h$. For a constant forecast $a\in[0,1]$, $K\sim\operatorname{Binomial}(H,p)$ and
+$$
+R_H(a)=\sum_{k=0}^H {H\choose k}p^k(1-p)^{H-k}
+\sqrt{(1-k/H)a^2+(k/H)(1-a)^2}.
+$$
+This function is convex because each term is a nonnegative multiple of a Euclidean norm. Forecasts outside $[0,1]$ can be projected into that interval without increasing any squared error. The script checks the one-sided derivatives at both endpoints, then solves $R'_H(a)=0$ in the interior when necessary, where
+$$
+R'_H(a)=\sum_{k=0}^H {H\choose k}p^k(1-p)^{H-k}
+\frac{a-k/H}{\sqrt{(1-k/H)a^2+(k/H)(1-a)^2}}.
+$$
+The endpoint derivatives are obtained by one-sided limits. The reported constant optimum also minimises the unrestricted forecast-vector risk: the outcome distribution is invariant under permutations, and averaging any forecast vector over those permutations gives a constant vector with no larger risk by convexity.
+
+The companion script checks the binomial reduction against direct enumeration of all binary windows at $H=1,2,4$, verifies the analytical one-step result and the reflection identity $a^*_H(1-p)=1-a^*_H(p)$ for the reported probabilities, and compares each optimum with an independent dense grid. The supplied CSV includes both $p=0.2$ and $p=0.8$ at nine window lengths. These checks concern the worked example only and do not estimate the size of the effect in a real forecasting benchmark.
 
 # References
